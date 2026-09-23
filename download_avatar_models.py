@@ -14,11 +14,15 @@ print('=' * 60)
 print('🚀 Downloading ONLY Avatar 1.5 required components...')
 print('=' * 60)
 
+precision = os.environ.get('PRECISION', 'all').strip().lower()
+if len(sys.argv) > 1 and sys.argv[1].startswith('--precision='):
+    precision = sys.argv[1].split('=', 1)[1].strip().lower()
+elif len(sys.argv) > 2 and sys.argv[1] == '--precision':
+    precision = sys.argv[2].strip().lower()
+
 # 1. Download Avatar 1.5 required components
-print('\n[1/2] Downloading LongCat-Video-Avatar-1.5 specific components (base_model_int8, lora, whisper, vocal_separator, scheduler)...')
+print('\n[1/2] Downloading LongCat-Video-Avatar-1.5 specific components...')
 avatar_allow_patterns = [
-    'base_model/*',
-    'base_model_int8/*',
     'lora/*',
     'dmd_lora.safetensors',
     'whisper-large-v3/*',
@@ -27,6 +31,16 @@ avatar_allow_patterns = [
     'config.json',
     'model_index.json'
 ]
+
+if precision == 'bf16':
+    print('🎯 Precision Mode: Pure BF16 Studio Master (Skipping INT8 to save 15.2 GB disk space)...')
+    avatar_allow_patterns.append('base_model/*')
+elif precision == 'int8':
+    print('🎯 Precision Mode: Fast INT8 (Skipping BF16 to save 30.4 GB disk space)...')
+    avatar_allow_patterns.append('base_model_int8/*')
+else:
+    print('🎯 Precision Mode: ALL (Downloading both BF16 and INT8 models)...')
+    avatar_allow_patterns.extend(['base_model/*', 'base_model_int8/*'])
 avatar_ignore_patterns = [
     '*.mp4',
     '*.png',
