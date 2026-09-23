@@ -1125,9 +1125,10 @@ def execute_avatar_generation(task_id: str):
         task["logs"].append(f"[{time.strftime('%H:%M:%S')}] 🛡️ [VRAM Safeguard] Single 24GB GPU detected. Enforcing INT8 Quantized DiT (14.9 GB).")
 
     if use_int8:
-        task["logs"].append(f"[{time.strftime('%H:%M:%S')}] ⚡ [ENGINE] INT8 Memory Saver active (Quantized DiT • 14.9GB VRAM footprint).")
+        task["logs"].append(f"[{time.strftime('%H:%M:%S')}] ⚡ [ENGINE] INT8 Fast Speed active (Quantized DiT • ~14.9GB VRAM footprint).")
     else:
-        task["logs"].append(f"[{time.strftime('%H:%M:%S')}] ✨ [ENGINE] BF16 Studio Master active (Pure BF16 Precision • Dual RTX 4090 48GB x 2 • 96GB Total VRAM).")
+        gpu_desc = f"{sys_gpu} ({int(max_single_gpu_vram_gb)}GB VRAM)" if max_single_gpu_vram_gb > 0 else sys_gpu
+        task["logs"].append(f"[{time.strftime('%H:%M:%S')}] ✨ [ENGINE] BF16 Studio Master active (Pure Uncompressed BF16 Precision • {gpu_desc}).")
 
     # Exact DiT resolution mapping: 500p (512x896), 540p (544x960), 600p (608x1024), 700p, 480p
     raw_res = str(resolution).lower().strip()
