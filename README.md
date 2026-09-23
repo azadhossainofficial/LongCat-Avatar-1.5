@@ -1,19 +1,8 @@
 # LongCat-Avatar-1.5 Studio Master 🎬✨
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/azadhossainofficial/LongCat-Avatar-1.5/blob/main/LongCat_Avatar_1_5_Colab.ipynb)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/azadhossainofficial/LongCat-Avatar-1.5)
 
 Production-ready Conversational Video Avatar Generation System powered by **LongCat-Video-Avatar-1.5** Diffusion Transformer (DiT) architecture and **Wan2.1-VAE**.
-
----
-
-## ⚡ Run on Google Colab (1-Click)
-
-You can run the complete LongCat-Avatar-1.5 Studio Master directly in Google Colab:
-
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/azadhossainofficial/LongCat-Avatar-1.5/blob/main/LongCat_Avatar_1_5_Colab.ipynb)
-
-> 💡 **Recommended Colab Runtime:** Select an **A100**, **L4**, or **V100** GPU (`Runtime` ➔ `Change runtime type` ➔ select `A100 GPU` or `L4 GPU`). The notebook automatically installs all dependencies, downloads official model weights, launches the Studio Server, and opens a free Cloudflare Public Tunnel URL so you can interact with the web UI from your browser!
 
 ---
 
