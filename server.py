@@ -1201,7 +1201,9 @@ def execute_avatar_generation(task_id: str):
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
         env["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
-        env["PYTHONPATH"] = f"{BASE_DIR}:{env.get('PYTHONPATH', '')}"
+        existing_py_paths = [p for p in sys.path if p and os.path.exists(p)]
+        all_py_paths = [str(BASE_DIR)] + [p for p in existing_py_paths if p != str(BASE_DIR)]
+        env["PYTHONPATH"] = os.pathsep.join(all_py_paths) + (f"{os.pathsep}{env.get('PYTHONPATH')}" if env.get('PYTHONPATH') else "")
         env["TORCH_CUDNN_V8_API_ENABLED"] = "1"
         env["CUDA_MODULE_LOADING"] = "LAZY"
         env["CUDA_VISIBLE_DEVICES"] = "0,1" if num_available_gpus >= 2 else "0"  # Dual-GPU Context Parallel mode
