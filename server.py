@@ -478,13 +478,10 @@ def load_active_tasks_from_disk():
             with open(TASKS_FILE, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
                 for tid, t in loaded.items():
-                    # If a task was in processing when server started, auto-queue to resume execution
-                    if t.get("status") == "processing":
-                        t["status"] = "queued"
-                        t["stage"] = "Queued for execution / auto-resume..."
+                    if t.get("status") in ["processing", "queued"]:
+                        t["status"] = "cancelled"
+                        t["stage"] = "Interrupted by server restart"
                     active_tasks[tid] = t
-                    if t.get("status") == "queued":
-                        task_queue.put(tid)
         except Exception:
             pass
 
@@ -889,6 +886,7 @@ def background_queue_worker(worker_id: int = 0):
             
             task = active_tasks.get(task_id)
             if task and task.get("status") == "queued":
+                print(f"[{time.strftime('%H:%M:%S')}] 🎬 [QUEUE WORKER] Dispatching task {task_id} to GPU engine...", flush=True)
                 execute_avatar_generation(task_id)
             
             with active_task_lock:
@@ -1214,6 +1212,7 @@ def execute_avatar_generation(task_id: str):
         cmd.append("--use_int8")
 
     task["logs"].append(f"[{time.strftime('%H:%M:%S')}] Running command (master_port: {master_port}): {' '.join(cmd)}")
+    print(f"[{time.strftime('%H:%M:%S')}] 🚀 [ENGINE LAUNCH] Running command on GPU (master_port: {master_port}): {' '.join(cmd)}", flush=True)
 
     try:
         # Pre-Launch GPU Sanitation: Clean zombie processes and ensure VRAM is free
@@ -1234,7 +1233,10 @@ def execute_avatar_generation(task_id: str):
         env["PYTHONPATH"] = os.pathsep.join(all_py_paths) + (f"{os.pathsep}{env.get('PYTHONPATH')}" if env.get('PYTHONPATH') else "")
         env["TORCH_CUDNN_V8_API_ENABLED"] = "1"
         env["CUDA_MODULE_LOADING"] = "LAZY"
-        env["CUDA_VISIBLE_DEVICES"] = "0,1" if num_available_gpus >= 2 else "0"  # Dual-GPU Context Parallel mode
+        if "CUDA_VISIBLE_DEVICES" not in os.environ:
+            env["CUDA_VISIBLE_DEVICES"] = "0,1" if num_available_gpus >= 2 else "0"
+        else:
+            env["CUDA_VISIBLE_DEVICES"] = os.environ["CUDA_VISIBLE_DEVICES"]
         env["NCCL_P2P_DISABLE"] = "1"
         env["NCCL_IB_DISABLE"] = "1"
         env["NCCL_NET_GDR_LEVEL"] = "0"
@@ -1273,6 +1275,7 @@ def execute_avatar_generation(task_id: str):
                     continue
                 
                 ts = time.strftime("%H:%M:%S")
+                print(f"[{ts}] {clean_line}", flush=True)
                 if clean_line.startswith("Denoising:"):
                     if not task["logs"] or not task["logs"][-1].endswith(clean_line):
                         task["logs"].append(f"[{ts}] {clean_line}")
@@ -3285,16 +3288,10 @@ class LongCatStudioHandler(SimpleHTTPRequestHandler):
             }
             active_tasks[task_id] = t_item
 
-            # If hybrid mode is ON and Engine 1 is actively rendering, route to manual_dual_queue (Engine 2)
-            is_hybrid = SERVER_CONFIG.get("hybrid_mode", False)
-            if is_hybrid and len(running_tasks_set) > 0:
-                manual_dual_queue.put(task_id)
-                t_item["queue_type"] = "dual_manual"
-                q_pos = manual_dual_queue.qsize()
-            else:
-                sequential_queue.put(task_id)
-                t_item["queue_type"] = "sequential"
-                q_pos = sequential_queue.qsize()
+            sequential_queue.put(task_id)
+            t_item["queue_type"] = "sequential"
+            q_pos = sequential_queue.qsize()
+            print(f"[{time.strftime('%H:%M:%S')}] 📥 New generation task registered: {task_id} (Queue position: {q_pos})", flush=True)
 
             save_active_tasks_to_disk()
 
