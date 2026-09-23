@@ -1,0 +1,61 @@
+# ==============================================================================
+# LongCat-Avatar-1.5 Git Ignore
+# ==============================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Model weights and checkpoints (automatically downloaded via download_avatar_models.py)
+weights/
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+
+# Generated outputs and uploads (large media files)
+outputs/
+uploads/
+audio_library/
+audio_temp_file/
+*.mp4
+*.wav
+*.mp3
+*.aac
+*.png
+*.jpg
+*.jpeg
+*.webp
+
+# Dynamic runtime state and log files
+active_tasks.json
+system_state.json
+*.log
+logs/
+*.pid
+
+# Backups and archives
+backups/
+*.tar.gz
+*.zip
+*.tar
+
+# OS / Editor temporary files
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Virtual environments
+venv/
+.venv/
+env/

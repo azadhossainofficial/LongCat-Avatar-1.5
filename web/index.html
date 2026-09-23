@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0f19">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>LongCat-Video-Avatar 1.5 Studio — Audio-Driven Talking Avatar Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=11.6.0_video_title_display">
+</head>
+<body>
+  <!-- Global App Wrapper -->
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-wrapper">
+          <div class="logo-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="title-group">
+            <div class="title-row">
+              <h1 class="app-title">LongCat-Video-Avatar 1.5 Studio</h1>
+            </div>
+            <p class="app-subtitle">Photorealistic portrait + voiceover = speech-aware talking avatar with guaranteed identity lock & natural human behavior</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="header-right">
+        <div class="engine-uptime">
+          <span class="uptime-label">Engine Uptime:</span>
+          <span class="uptime-val" id="uptimeCounter">00m 00s</span>
+        </div>
+        <div class="engine-status-badge online" id="engineStatusBadge">
+          <span class="status-dot"></span>
+          <span class="status-text">online</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Studio Controls Row (Clean Minimalist, No Box Border) -->
+    <div class="studio-controls-row">
+      <div class="studio-controls-left"></div>
+
+      <div class="studio-controls-right">
+        <!-- 🚀 Generate All Batch -->
+        <button type="button" class="btn-tool-generate-all" id="btnGenerateAllSlots" title="Start auto-queued batch generation across all configured tabs">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span>Generate All</span>
+        </button>
+
+        <!-- 🗑️ Delete All / Reset Tabs -->
+        <button type="button" class="btn-tool-danger" id="btnDeleteAllSlots" title="Clear and reset all video tabs back to empty clean state">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+          <span>Delete All</span>
+        </button>
+
+        <!-- 📊 Queue Monitor (Clean Dark) -->
+        <button type="button" class="btn-queue-monitor" id="btnOpenQueueMonitor" title="Open Real-time GPU Queue Dashboard">
+          <span class="pulse-indicator-queue">📊</span>
+          <span class="queue-btn-title">Queue Monitor</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Video Slots Multi-Row Tab Bar -->
+    <div class="video-slots-bar-wrap">
+      <div class="video-tabs-list" id="videoTabsList">
+        <!-- Injected via JS: Tabs display neatly in 1 or 2 rows (5 tabs per row) -->
+      </div>
+      <button type="button" class="btn-add-tab" id="btnAddVideoSlot" title="Add another video (up to 10)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>Add Video</span>
+      </button>
+    </div>
+
+    <!-- Main Workspace Two-Column Grid -->
+    <main class="workspace-grid">
+      
+      <!-- Left Column: Create Talking Avatar Controls -->
+      <section class="panel control-panel" id="createAvatarPanel">
+        <div class="panel-header">
+          <div class="panel-header-title">
+            <h2>Create Talking Avatar</h2>
+          </div>
+        </div>
+
+        <div class="panel-body">
+          
+          <!-- 0. Video Title (Optional) -->
+          <div class="form-group">
+            <label class="field-label" for="videoTitleInput">
+              <span>🏷️</span> Video Title <span class="optional-tag">(Optional)</span>
+            </label>
+            <input type="text" id="videoTitleInput" class="text-input-field" placeholder="e.g. History Story Part 1, News Episode 5, Motivational Speech...">
+          </div>
+
+          <!-- 1. Upload Reference Photo Dropzone -->
+          <div class="form-group">
+            <label class="field-label" for="imageInput">
+              Upload Reference Photo <span class="required-star">*</span>
+            </label>
+            <div class="dropzone image-dropzone" id="imageDropzone">
+              <input type="file" id="imageInput" accept="image/png, image/jpeg, image/webp" class="file-input-hidden">
+              
+              <!-- Empty state view -->
+              <div class="dropzone-empty" id="imageEmptyState">
+                <div class="dropzone-icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <rect x="3" y="3" width="18" height="18" rx="3" ry="3"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                  </svg>
+                </div>
+                <div class="dropzone-text">
+                  <strong>Click or Drag portrait photo here</strong>
+                  <span>Supports High-Res JPG, PNG, WEBP (Square or Portrait)</span>
+                </div>
+              </div>
+
+              <!-- Filled state preview card -->
+              <div class="dropzone-filled hidden" id="imageFilledState">
+                <div class="preview-thumbnail-wrap">
+                  <img id="imagePreviewImg" src="" alt="Portrait preview">
+                </div>
+                <div class="file-meta-info">
+                  <span class="file-name" id="imageFileName">portrait_sample.jpg</span>
+                  <span class="file-badge" id="imageFileMeta">768×1280 · 0.67 MB</span>
+                </div>
+                <button type="button" class="btn-change" id="btnChangeImage">Change</button>
+              </div>
+            </div>
+
+            <!-- Auto Detect Live Indicator Badge -->
+            <div class="auto-detect-badge hidden" id="imageAutoDetectBadge">
+              <span class="auto-detect-dot"></span>
+              <span id="imageAutoDetectText">✨ Auto-Detected: 16:9 Landscape (3840×2160 4K Source) → Mastering to 1080P Full HD</span>
+            </div>
+          </div>
+
+          <!-- 2. Upload Audio/Voiceover Dropzone -->
+          <div class="form-group">
+            <div class="field-label-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label class="field-label" for="audioInput" style="margin-bottom: 0;">
+                Upload Audio/Voiceover <span class="required-star">*</span>
+              </label>
+              <button type="button" class="btn-audio-library" id="btnOpenAudioLibrary" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 5px 12px; font-size: 11.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3); transition: all 0.2s ease;">
+                📂 Audio Library (ম্যাক ও সার্ভার অডিও)
+              </button>
+            </div>
+            
+            <div class="dropzone audio-dropzone" id="audioDropzone">
+              <input type="file" id="audioInput" accept="audio/wav, audio/mp3, audio/mpeg, audio/m4a, audio/aac, audio/ogg" class="file-input-hidden">
+              
+              <!-- Empty state view -->
+              <div class="dropzone-empty" id="audioEmptyState">
+                <div class="dropzone-icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                  </svg>
+                </div>
+                <div class="dropzone-text">
+                  <strong>Click or Drag speech audio file (WAV / MP3)</strong>
+                  <span>Supports 1 min, 5 min, 10 min, up to 15+ minutes long audio</span>
+                </div>
+              </div>
+
+              <!-- Filled state audio player card -->
+              <div class="dropzone-filled audio-filled-card hidden" id="audioFilledState">
+                <div class="audio-card-top">
+                  <div class="audio-file-info">
+                    <span class="audio-icon-tag">🎵</span>
+                    <span class="file-name" id="audioFileName">Audio_Test_speech.wav</span>
+                    <span class="file-badge audio-length-badge" id="audioFileMeta">1m 48s · 4.98 MB</span>
+                  </div>
+                  <button type="button" class="btn-change" id="btnChangeAudio">Change</button>
+                </div>
+                
+                <div class="custom-audio-player">
+                  <audio id="audioPlayerElement" preload="metadata"></audio>
+                  <button type="button" class="audio-play-btn" id="audioPlayPauseBtn" title="Play / Pause">
+                    <svg class="play-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <svg class="pause-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="4" width="4" height="16"></rect>
+                      <rect x="14" y="4" width="4" height="16"></rect>
+                    </svg>
+                  </button>
+                  
+                  <div class="audio-time-slider-wrap">
+                    <input type="range" class="audio-seek-slider" id="audioSeekSlider" min="0" max="100" value="0">
+                    <div class="audio-timestamps">
+                      <span id="audioCurrentTime">0:00</span>
+                      <span id="audioDurationTime">0:00</span>
+                    </div>
+                  </div>
+
+                  <div class="audio-vol-control">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Smart Auto-Detect Aspect Ratio & Framing (100% Mobile Responsive) -->
+          <div class="form-group">
+            <div class="field-label-row">
+              <label class="field-label" style="color: #ffffff !important; font-weight: 800 !important;">Aspect Ratio & Framing</label>
+              <span class="field-badge-green" id="smartAspectStatusBadge" style="color: #ffffff !important; font-weight: 800 !important; background: rgba(16, 185, 129, 0.35) !important; border: 1px solid rgba(16, 185, 129, 0.7) !important;">⚡ 100% Smart Auto-Detect</span>
+            </div>
+            <div class="smart-aspect-card active" id="smartAspectCard">
+              <div class="smart-aspect-main-row">
+                <div class="smart-aspect-icon-wrap" id="smartAspectIconWrap">
+                  <div class="smart-aspect-icon ratio-auto" id="smartAspectIcon">
+                    <span id="smartAspectIconText">⚡ AUTO</span>
+                  </div>
+                </div>
+                <div class="smart-aspect-info">
+                  <div class="smart-aspect-title" id="smartAspectTitle">⚡ Auto-Detect Ratio & Framing</div>
+                </div>
+                <div class="smart-aspect-right">
+                  <div class="smart-aspect-target" id="smartAspectTarget">
+                    <span class="smart-target-badge" id="smartTargetBadge">Studio Master HD</span>
+                  </div>
+                </div>
+              </div>
+              <div class="smart-aspect-sub" id="smartAspectSub">Drop or select an image — Automatically adapts to 16:9 Landscape, 9:16 Portrait, or 1:1 Square</div>
+            </div>
+          </div>
+
+          <!-- Row 1: Avatar Gender & Dynamics (Full 100% Width, Bold White Text) -->
+          <div class="avatar-dynamics-full-card">
+            <div class="field-label-row" style="margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+              <label class="field-label" for="genderSelect" style="margin-bottom: 0; font-size: 0.92rem; font-weight: 800; color: #ffffff;">Avatar Gender & Dynamics</label>
+              <span class="field-badge-green" id="genderAutoBadge" style="font-size: 0.72rem; font-weight: 800; color: #ffffff; background: rgba(16, 185, 129, 0.3); border: 1px solid rgba(16, 185, 129, 0.6); padding: 3px 8px; border-radius: 6px;">✨ Ready to Auto-Scan</span>
+            </div>
+            <div class="gender-subtext" style="font-size: 0.78rem; color: #ffffff; font-weight: 700; margin-bottom: 8px; line-height: 1.35;">
+              Bio-motion posture & organic respiration dynamics
+            </div>
+            <div class="select-wrapper">
+              <select id="genderSelect" class="form-select" style="font-weight: 700; font-size: 13px; height: 40px; color: #ffffff; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <option value="" disabled selected>✨ Select Avatar Gender (Auto-scans on upload)</option>
+                <option value="female">👩 Female (Natural Breathing & Bust Movement Dynamics)</option>
+                <option value="male">👨 Male (Standard Masculine Posture)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Row 2: Anchor Seamless Architecture (Full 100% Width, Bold Black Text on Luminous Background) -->
+          <div class="anchor-seamless-full-card">
+            <div class="field-label-row" style="margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span class="anchor-icon" style="font-size: 1.05rem;">⚡</span>
+                <span class="anchor-title" style="font-size: 0.95rem; font-weight: 800; color: #000000;">Anchor Seamless Mode</span>
+              </div>
+            </div>
+            <div class="anchor-sub" style="font-size: 0.78rem; color: #000000; font-weight: 700; margin-bottom: 10px; line-height: 1.35;">
+              Pristine Source Face Anchor • Continuous Speech Chunking Architecture
+            </div>
+            <div class="continuity-chunk-options" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+              <label class="chunk-pill active" data-val="205" title="~8.2s (205 Frames) Studio Standard Natural Speech per Segment" style="text-align: center;">
+                <input type="radio" name="numFrames" value="205" checked style="display:none;">
+                <span style="font-weight: 800;">🎬 8s (Studio Standard)</span>
+              </label>
+              <label class="chunk-pill" data-val="253" title="~10.1s (253 Frames) Extended Balanced Speech per Segment" style="text-align: center;">
+                <input type="radio" name="numFrames" value="253" style="display:none;">
+                <span style="font-weight: 800;">⚡ 10s (Extended Balanced)</span>
+              </label>
+              <label class="chunk-pill" data-val="301" title="~12.0s (301 Frames) Maximum Continuity Speech per Segment" style="text-align: center;">
+                <input type="radio" name="numFrames" value="301" style="display:none;">
+                <span style="font-weight: 800;">💎 12s (Maximum Continuity)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Neural Diffusion Dedicated Control Row -->
+          <div class="neural-diffusion-card">
+            <div class="neural-diffusion-header">
+              <div class="neural-diffusion-title">
+                <span class="neural-icon">⚡</span>
+                <span>Neural Diffusion</span>
+                <span class="neural-badge">DiT Architecture Control</span>
+              </div>
+            </div>
+            <div class="neural-diffusion-grid">
+              <label class="neural-diff-option" data-val="500p">
+                <input type="radio" name="neuralDiffusion" value="500p" checked>
+                <div class="neural-diff-content">
+                  <div class="neural-diff-top">
+                    <span class="neural-diff-name">⚡ 500P Fast</span>
+                    <span class="neural-diff-tag speed-tag" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border-color: rgba(16, 185, 129, 0.4);">Fast (~28s)</span>
+                  </div>
+                  <div class="neural-diff-sub">512×896 Native • Smooth Motion, Studio 1080P Export</div>
+                </div>
+              </label>
+
+              <label class="neural-diff-option" data-val="540p">
+                <input type="radio" name="neuralDiffusion" value="540p">
+                <div class="neural-diff-content">
+                  <div class="neural-diff-top">
+                    <span class="neural-diff-name">🚀 540P Balanced</span>
+                    <span class="neural-diff-tag speed-tag">Balanced</span>
+                  </div>
+                  <div class="neural-diff-sub">544×960 Sharp • Enhanced Clarity</div>
+                </div>
+              </label>
+
+              <label class="neural-diff-option" data-val="600p">
+                <input type="radio" name="neuralDiffusion" value="600p">
+                <div class="neural-diff-content">
+                  <div class="neural-diff-top">
+                    <span class="neural-diff-name">✨ 600P High Detail</span>
+                    <span class="neural-diff-tag speed-tag" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6; border-color: rgba(59, 130, 246, 0.4);">HD</span>
+                  </div>
+                  <div class="neural-diff-sub">608×1024 Sharp • High Fidelity Detail</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- 4. Inference Steps, Precision & Step Booster Row -->
+          <div class="form-row-3col" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+            <div class="form-group">
+              <label class="field-label" for="stepsSelect">Inference Steps</label>
+              <div class="select-wrapper">
+                <select id="stepsSelect" class="form-select">
+                  <option value="3" selected>⚡ 3 Steps (Fast • ~12-13m total)</option>
+                  <option value="4">🚀 4 Steps (Balanced • ~17m total)</option>
+                  <option value="8">✨ 8 Steps (Studio HD Master • Highest Quality)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="field-label" for="presetSelect">Precision & Engine</label>
+              <div class="select-wrapper">
+                <select id="presetSelect" class="form-select">
+                  <option value="distill_bf16" selected>✨ BF16 Studio Master (Pure Precision • 48GB per GPU • 96GB Total)</option>
+                  <option value="distill_int8">⚡ INT8 Memory Saver (Legacy Low-VRAM GPUs)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="field-label" for="stepBoosterSelect">⚡ Step Booster</label>
+              <div class="select-wrapper">
+                <select id="stepBoosterSelect" class="form-select">
+                  <option value="default" selected>✨ PyTorch SDPA / FlashAttention-2 (100% Stable)</option>
+                  <option value="sage_attention">⚡ SageAttention (Experimental)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- 5. Behavior & Motion Prompt (Positive Guidance) -->
+          <div class="form-group">
+            <label class="field-label" for="motionPromptText">
+              <span style="color: #10b981;">➕</span> Positive Prompt (Motion & Behavior Control)
+            </label>
+            
+            <div class="prompt-box-wrapper">
+              <textarea id="motionPromptText" class="prompt-textarea" rows="3" placeholder="Use the uploaded image exactly as the reference. Preserve the same man, face, hairstyle, facial hair, skin tone, clothing, body proportions, framing, lighting, and natural colors. Professional man speaking naturally and calmly with smooth accurate lip sync, relaxed gentle jaw movement, closed relaxed mouth during pauses, subtle cheek motion, and natural irregular blinking. Gentle organic breathing, composed relaxed posture with subtle head micro-movements. Natural matte masculine lips with zero lipstick or gloss, authentic skin tone. Hands remain 100% completely motionless and locked in place with zero gestures. Locked stationary tripod camera, zero zoom in, zero zoom out, static background.">Use the uploaded image exactly as the reference. Preserve the same man, face, hairstyle, facial hair, skin tone, clothing, body proportions, framing, lighting, and natural colors. Professional man speaking naturally and calmly with smooth accurate lip sync, relaxed gentle jaw movement, closed relaxed mouth during pauses, subtle cheek motion, and natural irregular blinking. Gentle organic breathing, composed relaxed posture with subtle head micro-movements. Natural matte masculine lips with zero lipstick or gloss, authentic skin tone. Hands remain 100% completely motionless and locked in place with zero gestures. Locked stationary tripod camera, zero zoom in, zero zoom out, static background.</textarea>
+            </div>
+          </div>
+
+          <!-- 5B. Negative Prompt (Avoid & Exclude) -->
+          <div class="form-group">
+            <label class="field-label" for="negativePromptText">
+              <span style="color: #ef4444;">⛔</span> Negative Prompt (Avoid & Exclude)
+            </label>
+            
+            <div class="prompt-box-wrapper">
+              <textarea id="negativePromptText" class="prompt-textarea negative-prompt" rows="5" placeholder="Aggressive speech, shouting, yelling, loud forceful talking, wide open mouth, gaping mouth, over-opened mouth, jaw tension, unhinged jaw, forced facial strain, clenched teeth, robotic mouth stretching, popping neck veins, exaggerated head shaking, sudden fast movements, strange staring, darting eyes, AI uncanny valley look, moving hands while speaking, conversational hand gestures, talking with hands, gesturing with hands, raising hands, waving hands, moving arms, hands entering frame, hands rising, fidgeting hands, touching face, touching hair, touching chest, frozen body, stiff mannequin posture, zoom in, zoom out, camera movement, camera drift, forward leaning, overexposure, glowing teeth, teeth emitting light, white tooth glare, pink lips, red lips, magenta lips, lipstick, lip gloss, face distortion, body warping, deformed features.">Aggressive speech, shouting, yelling, loud forceful talking, wide open mouth, gaping mouth, over-opened mouth, jaw tension, unhinged jaw, forced facial strain, clenched teeth, robotic mouth stretching, popping neck veins, exaggerated head shaking, sudden fast movements, strange staring, darting eyes, AI uncanny valley look, moving hands while speaking, conversational hand gestures, talking with hands, gesturing with hands, raising hands, waving hands, moving arms, hands entering frame, hands rising, fidgeting hands, touching face, touching hair, touching chest, frozen body, stiff mannequin posture, zoom in, zoom out, camera movement, camera drift, forward leaning, overexposure, glowing teeth, teeth emitting light, white tooth glare, pink lips, red lips, magenta lips, lipstick, lip gloss, face distortion, body warping, deformed features.</textarea>
+            </div>
+          </div>
+
+          <!-- 6. Length Mode & Segment Calculation -->
+          <div class="form-group">
+            <div class="label-with-hint">
+              <label class="field-label" for="lengthModeSelect">Length Mode</label>
+              <span class="segment-badge" id="segmentCountDisplay">Est. Segments: Auto (1 Segment)</span>
+            </div>
+            <div class="select-wrapper">
+              <select id="lengthModeSelect" class="form-select">
+                <option value="auto" selected>Auto (seamless multishot for full audio length)</option>
+                <option value="1">1 Segment (~3.7s Preview Clip)</option>
+                <option value="5">5 Segments (~16s Short Clip)</option>
+                <option value="15">15 Segments (~48s Mid Clip)</option>
+                <option value="50">50 Segments (~2.6 mins Extended)</option>
+                <option value="100">100 Segments (~5.3 mins Full Speech)</option>
+              </select>
+            </div>
+          </div>
+
+
+          <!-- 8. Cinematic Polish & Motion Parameters -->
+          <div class="cinematic-section">
+            <div class="cinematic-header">
+              <span class="cinematic-title">Cinematic Polish & Transitions</span>
+              <span class="studio-grade-badge">Studio Grade</span>
+            </div>
+
+            <div class="cinematic-grid">
+              <div class="cinematic-field">
+                <span class="subfield-label">Scene Transitions</span>
+                <div class="select-wrapper">
+                  <select id="sceneTransitionSelect" class="form-select sm">
+                    <option value="seamless" selected>Seamless Mix (Linear Cross-Fade)</option>
+                    <option value="cut">Direct Hard Cut</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="cinematic-field">
+                <span class="subfield-label">Filmic Color Grade</span>
+                <div class="select-wrapper">
+                  <select id="colorGradeSelect" class="form-select sm">
+                    <option value="natural" selected>Natural & Faithful (Original Colors)</option>
+                    <option value="warm">Warm Studio Glow</option>
+                    <option value="cool">Crisp Modern Cool</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="cinematic-field">
+                <span class="subfield-label">Camera Micro-Motion</span>
+                <div class="select-wrapper">
+                  <select id="cameraMotionSelect" class="form-select sm">
+                    <option value="static_tripod" selected>Static Tripod Lock (Sharp & Stable)</option>
+                    <option value="subtle_handheld">Subtle Natural Breathing</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="cinematic-field">
+                <div class="seed-label-row">
+                  <span class="subfield-label">Seed</span>
+                  <button type="button" class="btn-random-seed" id="btnRandomSeed" title="Randomize seed">🎲</button>
+                </div>
+                <input type="number" id="seedInput" class="form-input sm" value="10">
+              </div>
+            </div>
+          </div>
+
+          <!-- 9. Primary Action & Form Utilities -->
+          <div class="action-buttons-wrap form-utils-wrap">
+            <button type="button" class="btn-primary-generate" id="btnGenerateAvatar" title="Generate Avatar Video for Active Tab">
+              <span class="btn-icon">⚡</span>
+              <span class="btn-text">Generate Video</span>
+            </button>
+            <button type="button" class="btn-secondary-action" id="btnStopGeneration" disabled title="Cancel / Stop current job">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+              </svg>
+              <span>Stop</span>
+            </button>
+            <button type="button" class="btn-secondary-action" id="btnRefreshStatus" title="Refresh Engine">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+              <span>Refresh</span>
+            </button>
+            <button type="button" class="btn-secondary-action" id="btnClearAllFields" title="Clear inputs">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+              <span>Clear</span>
+            </button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Right Column: Active Generation Monitor & Video Player -->
+      <section class="panel monitor-panel" id="monitorPanel">
+        
+        <div class="panel-header">
+          <div class="panel-header-title">
+            <h2>Active Generation Monitor</h2>
+          </div>
+        </div>
+
+        <div class="panel-body">
+          
+          <!-- Generation Progress Banner -->
+          <div class="progress-banner-card" id="progressBannerCard">
+            <div class="progress-card-top">
+              <div class="progress-badge-status" id="progressStatusBadge">
+                <span class="badge-icon-spin hidden" id="progressSpinIcon">⏳</span>
+                <span class="badge-text" id="progressStatusText">IDLE</span>
+              </div>
+              <div class="progress-percent-val" id="progressPercentDisplay">0.0% (Ready)</div>
+            </div>
+
+            <div class="progress-bar-track">
+              <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>
+            </div>
+
+            <!-- Stats Real-Time Telemetry 6-Grid -->
+            <div class="stats-metrics-grid" id="statsMetricsGrid">
+              <div class="metric-item">
+                <span class="metric-label">⏱️ ELAPSED WAITING</span>
+                <span class="metric-val highlight-val" id="metricElapsed">--:--</span>
+              </div>
+
+              <div class="metric-item">
+                <span class="metric-label">⏳ TIME REMAINING (ETA)</span>
+                <span class="metric-val eta-val" id="metricEta">--:--</span>
+              </div>
+
+              <div class="metric-item">
+                <span class="metric-label">⌛ TOTAL EST. TIME</span>
+                <span class="metric-val" id="metricTotal">--:--</span>
+              </div>
+
+              <div class="metric-item">
+                <span class="metric-label">🎬 SEGMENT PROGRESS</span>
+                <span class="metric-val" id="metricSegment">0 / 0</span>
+              </div>
+
+              <div class="metric-item">
+                <span class="metric-label">⚡ STEP PIPELINE</span>
+                <span class="metric-val" id="metricSteps">0 / 0</span>
+              </div>
+
+              <div class="metric-item">
+                <span class="metric-label">🏎️ SPEED & STAGE</span>
+                <span class="metric-val stage-val" id="metricStage">--:--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Worker Execution Log Terminal -->
+          <div class="terminal-log-card">
+            <div class="terminal-header">
+              <div class="terminal-title">
+                <span class="terminal-prompt-symbol">&gt;_</span>
+                <span>Live Log/Error</span>
+              </div>
+              <div class="terminal-actions">
+                <span class="terminal-gpu-tag" id="gpuTag">Dual NVIDIA RTX 4090 (48GB x 2 • 96GB Total)</span>
+                <button type="button" class="btn-copy-log" id="btnCopyLog" title="Copy all logs to clipboard">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <span id="copyLogText">Copy</span>
+                </button>
+                <button type="button" class="btn-clear-log" id="btnClearLog" title="Clear log">Clear</button>
+              </div>
+            </div>
+            
+            <div class="terminal-body" id="terminalLogBody">
+              <div class="log-line info"><span class="log-ts">[00:00:00]</span> Engine initialized. Ready for LongCat-Video-Avatar 1.5 tasks.</div>
+              <div class="log-line muted"><span class="log-ts">[00:00:00]</span> Model weights: LongCat-Video-Avatar-1.5 / DMD Distill (8-step) enabled.</div>
+              <div class="log-line muted"><span class="log-ts">[00:00:00]</span> Audio separator: Kim_Vocal_2.onnx loaded. Whisper-large-v3 acoustic ready.</div>
+            </div>
+          </div>
+
+          <!-- Rendered Video Player Card -->
+          <div class="rendered-video-card" id="renderedVideoCard">
+            <div class="video-card-header">
+              <div class="video-card-title" id="renderedVideoCardTitle">Rendered Video (Active Tab)</div>
+              <span class="video-spec-badge" id="videoSpecBadge">768×1280 • 25fps</span>
+            </div>
+
+            <div class="video-player-container">
+              <video id="mainVideoPlayer" class="main-video-element" controls playsinline preload="auto">
+                <source src="" type="video/mp4">
+                Your browser does not support video playback.
+              </video>
+              
+              <!-- Video Placeholder overlay when no video is rendered -->
+              <div class="video-placeholder-overlay" id="videoPlaceholderOverlay">
+                <div class="placeholder-icon">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                </div>
+                <span>Rendered talking avatar video will play here</span>
+              </div>
+            </div>
+
+            <div class="video-card-footer">
+              <div class="video-filename-tag" id="renderedVideoFilename">
+                <span>No video rendered yet</span>
+              </div>
+
+              <div class="video-actions-row">
+                <button type="button" class="btn-video-action" id="btnFullscreenPreview" disabled>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                  </svg>
+                  <span>Fullscreen</span>
+                </button>
+
+                <!-- Dual Download Buttons (1080P Master & 720P Optimized) -->
+                <a id="btnDownloadVideo1080p" class="btn-video-action btn-download btn-download-1080p disabled" download="video_1080p.mp4" href="#" title="Download 1080P Full HD Master Video">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  <span id="btnDownload1080pText">📥 1080P (291.75 MB)</span>
+                </a>
+
+                <a id="btnDownloadVideo720p" class="btn-video-action btn-download btn-download-720p disabled" download="video_720p.mp4" href="#" title="Download 720P Optimized Video">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                  </svg>
+                  <span id="btnDownload720pText">⚡ 720P (108.44 MB)</span>
+                </a>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Section: Recent Videos Gallery & Trash System -->
+    <section class="panel gallery-panel" id="recentGalleryPanel">
+      <div class="gallery-header-row">
+        <div class="gallery-title-group">
+          <h2 id="galleryMainHeading">Recent Videos</h2>
+
+          <!-- View Switcher Tabs: Active Gallery vs Trash -->
+          <div class="gallery-view-tabs">
+            <button type="button" class="gallery-tab-btn active" id="tabGalleryView" onclick="switchGalleryTab('gallery')">
+              <span>🎬 Active</span>
+              <span class="tab-count-pill" id="tabActiveCount">0</span>
+            </button>
+            <button type="button" class="gallery-tab-btn" id="tabTrashView" onclick="switchGalleryTab('trash')">
+              <span>🗑️ Trash</span>
+              <span class="tab-count-pill tab-trash-pill" id="tabTrashCount">0</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Actions for Active Gallery -->
+        <div class="gallery-batch-actions" id="activeBatchActions">
+          <label class="select-all-label">
+            <input type="checkbox" id="selectAllCheckbox">
+            <span>Select all</span>
+          </label>
+          <button type="button" class="btn-batch-delete" id="btnDeleteSelected" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+            </svg>
+            <span id="deleteSelectedText">Move to Trash</span>
+          </button>
+          <button type="button" class="btn-batch-delete btn-delete-all" id="btnDeleteAll" title="Move all to Trash">
+            <span>Move all to Trash</span>
+          </button>
+        </div>
+
+        <!-- Actions for Trash View -->
+        <div class="gallery-batch-actions hidden" id="trashBatchActions">
+          <label class="select-all-label">
+            <input type="checkbox" id="selectAllTrashCheckbox" onchange="onSelectAllTrashChange(this)">
+            <span>Select all</span>
+          </label>
+          <button type="button" class="btn-batch-action btn-recover-batch" id="btnRecoverSelectedTrash" disabled onclick="handleRecoverSelectedTrash()">
+            <span>♻️ Recover Selected</span>
+          </button>
+          <button type="button" class="btn-batch-delete" id="btnDeleteSelectedTrash" disabled onclick="handleDeleteSelectedTrashPermanent()">
+            <span>🔥 Delete Permanently</span>
+          </button>
+          <button type="button" class="btn-batch-delete btn-delete-all" id="btnEmptyTrash" title="Permanently delete all videos in Trash" onclick="handleEmptyTrash()">
+            <span>🗑️ Empty Trash</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Gallery Cards Grid (Active Gallery) -->
+      <div class="gallery-grid" id="galleryGrid">
+        <!-- Dynamic Cards Inserted Here via JS -->
+      </div>
+
+      <!-- Trash Cards Grid (Trash View) -->
+      <div class="gallery-grid hidden" id="trashGrid">
+        <!-- Trashed Cards Inserted Here via JS -->
+      </div>
+    </section>
+
+  <!-- Floating Draggable Action Dock (Always Visible Generate Bar) -->
+  <div id="floatingActionDock" class="floating-action-dock" title="Drag anywhere to reposition">
+    <div class="dock-slot-indicator" id="dockSlotIndicator">
+      <span class="dock-slot-dot"></span>
+      <span id="dockSlotText">Video 1</span>
+    </div>
+    <button type="button" class="btn-dock-generate" id="floatingBtnGenerate" title="Generate Avatar for active tab">
+      <span id="floatingBtnText" class="btn-dock-text">Generate Video</span>
+    </button>
+    <button type="button" class="btn-dock-stop" id="floatingBtnStop" disabled title="Cancel / Stop current job">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+        <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+      </svg>
+      <span>Stop</span>
+    </button>
+  </div>
+
+  <!-- Fullscreen Modal Preview -->
+  <div class="modal-overlay hidden" id="fullscreenModal">
+    <div class="modal-content">
+      <button type="button" class="modal-close-btn" id="modalCloseBtn">&times;</button>
+      <video id="modalVideoPlayer" class="modal-video-element" controls playsinline preload="auto"></video>
+      <div class="modal-footer-bar">
+        <span id="modalVideoTitle">Video Title</span>
+        <div class="modal-download-actions">
+          <a id="modalDownloadBtn1080p" class="btn-video-action btn-download btn-download-1080p" download href="#">📥 1080P Full HD</a>
+          <a id="modalDownloadBtn720p" class="btn-video-action btn-download btn-download-720p" download href="#">⚡ 720P Optimized</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Real-Time Queue Monitor Modal -->
+  <div class="modal-overlay hidden" id="queueMonitorModal">
+    <div class="modal-content queue-modal-content">
+      <div class="queue-modal-header">
+        <div class="queue-header-left">
+          <div class="queue-modal-icon">⚡</div>
+          <div>
+            <h3>Batch GPU Queue Monitor</h3>
+            <p class="queue-modal-sub">Multi-video rendering queue and live progress dashboard</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" id="queueModalCloseBtn">&times;</button>
+      </div>
+
+      <div class="queue-modal-body" id="queueModalBody">
+        <!-- Rendered dynamically by app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio Library Modal -->
+  <div class="modal-overlay hidden" id="audioLibraryModal">
+    <div class="modal-content audio-library-modal-content" style="max-width: 720px; width: 95%; background: #0f172a; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85); overflow: hidden;">
+      <div class="queue-modal-header" style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
+        <div class="queue-header-left" style="display: flex; align-items: center; gap: 12px;">
+          <div class="queue-modal-icon" style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.5); font-size: 20px; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">🎵</div>
+          <div>
+            <h3 style="color: #ffffff; font-weight: 800; font-size: 16px; margin: 0;">Audio Library (অডিও লাইব্রেরি)</h3>
+            <p class="queue-modal-sub" style="color: #9ca3af; font-size: 12px; margin-top: 3px; margin-bottom: 0;">MacBook বা সার্ভারে রাখা যেকোনো বড় অডিও (২৩+ মিনিট) তাৎক্ষণিক ০-সেকেন্ডে সিলেক্ট করুন</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" id="audioLibraryModalCloseBtn" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; width: 32px; height: 32px; border-radius: 8px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;">&times;</button>
+      </div>
+
+      <div class="audio-library-toolbar" style="padding: 12px 20px; display: flex; gap: 10px; background: rgba(15, 23, 42, 0.8); border-bottom: 1px solid rgba(255, 255, 255, 0.08); align-items: center;">
+        <input type="text" id="audioLibrarySearch" style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 8px 14px; color: #ffffff; font-size: 13px; outline: none;" placeholder="🔍 অডিও ফাইলের নাম দিয়ে ফিল্টার করুন...">
+        <button type="button" id="btnRefreshAudioLibrary" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 8px 14px; color: #ffffff; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+          🔄 রিফ্রেশ
+        </button>
+        <button type="button" id="btnDeleteAllAudioLibrary" style="background: #dc2626; border: 1px solid #ef4444; border-radius: 8px; padding: 8px 15px; color: #ffffff; font-size: 12px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4); transition: all 0.2s ease;">
+          <span style="display: inline-block; filter: brightness(0) invert(1);">🗑️</span> Delete All
+        </button>
+        <button type="button" id="btnUploadToAudioLibrary" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); border: none; border-radius: 8px; padding: 8px 14px; color: #ffffff; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);">
+          ⬆️ অডিও আপলোড
+        </button>
+        <input type="file" id="audioLibraryUploadInput" accept="audio/*,.wav,.mp3,.m4a,.aac,.ogg,.flac" style="display: none;">
+      </div>
+
+      <div class="audio-library-body" id="audioLibraryBody" style="max-height: 48vh; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 10px;">
+        <!-- Dynamically rendered audio list -->
+      </div>
+
+      <div class="audio-library-guide" style="padding: 14px 20px; background: rgba(16, 185, 129, 0.08); border-top: 1px solid rgba(16, 185, 129, 0.2); font-size: 12px; color: #d1fae5; line-height: 1.6;">
+        <strong style="color: #34d399;">💡 আপনার MacBook থেকে বড় অডিও অ্যাড করার নিয়ম:</strong><br>
+        ১. ম্যাকবুকের ফোল্ডার <code>audio_library/</code> তে আপনার বড় সাইজের অডিও (২৩+ মিনিট) রাখুন।<br>
+        ২. টার্মিনালে <code>./sync_audio.sh</code> রান করুন (হাই-স্পিড Rsync দিয়ে সরাসরি সার্ভারে ট্রান্সফার হবে)।<br>
+        ৩. এরপর এখান থেকে এক ক্লিকে সিলেক্ট করুন—<strong>০ সেকেন্ডে (কোনো ব্রাউজার আপলোড ছাড়াই)</strong> সঙ্গে সঙ্গে ভিডিও তৈরি শুরু হবে!
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="app.js?v=11.7.0_natural_avatar_motion"></script>
+</body>
+</html>
