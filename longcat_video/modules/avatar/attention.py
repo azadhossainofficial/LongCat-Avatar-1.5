@@ -77,16 +77,20 @@ class Attention(nn.Module):
             latent_shape_k = (Tk, H, W)
             x = flash_attn_bsa_3d(q, k, v, latent_shape_q, latent_shape_k, **self.bsa_params)
         elif self.enable_flashattn3:
-            from flash_attn_interface import flash_attn_func
+            try:
+                from flash_attn_interface import flash_attn_func
+            except ImportError:
+                from flash_attn_compat import flash_attn_func
             q = rearrange(q, "B H S D -> B S H D").contiguous()
             k = rearrange(k, "B H S D -> B S H D").contiguous()
             v = rearrange(v, "B H S D -> B S H D").contiguous()
-            x, *_ = flash_attn_func(
+            out = flash_attn_func(
                 q,
                 k,
                 v,
                 softmax_scale=self.scale,
             )
+            x = out[0] if isinstance(out, (tuple, list)) else out
             x = rearrange(x, "B S H D -> B H S D")
         elif self.enable_flashattn2:
             try:
@@ -389,16 +393,20 @@ class SingleStreamAttention(nn.Module):
         
 
         if self.enable_flashattn3:
-            from flash_attn_interface import flash_attn_func
+            try:
+                from flash_attn_interface import flash_attn_func
+            except ImportError:
+                from flash_attn_compat import flash_attn_func
             q = rearrange(q, "B H S D -> B S H D").contiguous()
             encoder_k = rearrange(encoder_k, "B H S D -> B S H D").contiguous()
             encoder_v = rearrange(encoder_v, "B H S D -> B S H D").contiguous()
-            x, *_ = flash_attn_func(
+            out = flash_attn_func(
                 q,
                 encoder_k,
                 encoder_v,
                 softmax_scale=self.scale,
             )
+            x = out[0] if isinstance(out, (tuple, list)) else out
             x = rearrange(x, "B S H D -> B H S D")
         elif self.enable_flashattn2:
             try:

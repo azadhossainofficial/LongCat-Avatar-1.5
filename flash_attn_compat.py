@@ -97,3 +97,15 @@ def flash_attn_varlen_func(
     if return_attn_probs:
         return out, None
     return out
+
+# Auto-register as flash_attn and flash_attn_interface in sys.modules
+import sys
+_this_mod = sys.modules.get(__name__)
+if _this_mod is not None:
+    _this_mod.__path__ = []
+    _this_mod.flash_attn_interface = _this_mod
+    _this_mod.flash_attn = _this_mod
+    for _alias in ["flash_attn", "flash_attn.flash_attn_interface", "flash_attn_interface"]:
+        if _alias not in sys.modules:
+            sys.modules[_alias] = _this_mod
+

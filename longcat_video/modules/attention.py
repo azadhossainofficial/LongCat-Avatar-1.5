@@ -66,16 +66,20 @@ class Attention(nn.Module):
             latent_shape_k = (Tk, H, W)
             x = flash_attn_bsa_3d(q, k, v, latent_shape_q, latent_shape_k, **self.bsa_params)
         elif self.enable_flashattn3:
-            from flash_attn_interface import flash_attn_func
+            try:
+                from flash_attn_interface import flash_attn_func
+            except ImportError:
+                from flash_attn_compat import flash_attn_func
             q = rearrange(q, "B H S D -> B S H D").contiguous()
             k = rearrange(k, "B H S D -> B S H D").contiguous()
             v = rearrange(v, "B H S D -> B S H D").contiguous()
-            x, *_ = flash_attn_func(
+            out = flash_attn_func(
                 q,
                 k,
                 v,
                 softmax_scale=self.scale,
             )
+            x = out[0] if isinstance(out, (tuple, list)) else out
             x = rearrange(x, "B S H D -> B H S D")
         elif self.enable_flashattn2:
             import torch.nn.functional as F
@@ -209,19 +213,11 @@ class MultiHeadCrossAttention(nn.Module):
         q, k = self.q_norm(q), self.k_norm(k)
 
         if self.enable_flashattn3:
-            from flash_attn_interface import flash_attn_varlen_func
-            x = flash_attn_varlen_func(
-                q=q[0],
-                k=k[0],
-                v=v[0],
-                cu_seqlens_q=torch.tensor([0] + [N] * B, device=q.device).cumsum(0).to(torch.int32),
-                cu_seqlens_k=torch.tensor([0] + kv_seqlen, device=q.device).cumsum(0).to(torch.int32),
-                max_seqlen_q=N,
-                max_seqlen_k=max(kv_seqlen),
-            )[0]
-        elif self.enable_flashattn2:
-            from flash_attn import flash_attn_varlen_func
-            x = flash_attn_varlen_func(
+            try:
+                from flash_attn_interface import flash_attn_varlen_func
+            except ImportError:
+                from flash_attn_compat import flash_attn_varlen_func
+            res = flash_attn_varlen_func(
                 q=q[0],
                 k=k[0],
                 v=v[0],
@@ -230,6 +226,29 @@ class MultiHeadCrossAttention(nn.Module):
                 max_seqlen_q=N,
                 max_seqlen_k=max(kv_seqlen),
             )
+            x = res[0] if isinstance(res, (tuple, list)) else res
+        elif self.enable_flashattn2:
+            try:
+                from flash_attn import flash_attn_varlen_func
+            except ImportError:
+                try:
+                    from flash_attn_compat import flash_attn_varlen_func
+                except ImportError:
+                    import sys, os
+                    for _p in [os.getcwd(), os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))]:
+                        if _p not in sys.path:
+                            sys.path.insert(0, _p)
+                    from flash_attn_compat import flash_attn_varlen_func
+            res = flash_attn_varlen_func(
+                q=q[0],
+                k=k[0],
+                v=v[0],
+                cu_seqlens_q=torch.tensor([0] + [N] * B, device=q.device).cumsum(0).to(torch.int32),
+                cu_seqlens_k=torch.tensor([0] + kv_seqlen, device=q.device).cumsum(0).to(torch.int32),
+                max_seqlen_q=N,
+                max_seqlen_k=max(kv_seqlen),
+            )
+            x = res[0] if isinstance(res, (tuple, list)) else res
         elif self.enable_xformers:
             import xformers.ops
             attn_bias = xformers.ops.fmha.attn_bias.BlockDiagonalMask.from_seqlens([N] * B, kv_seqlen)

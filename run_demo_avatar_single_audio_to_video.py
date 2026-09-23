@@ -1,4 +1,20 @@
 import os
+import sys
+
+# Ensure FlashAttention drop-in compatibility shim is always available
+_curr_dir = os.path.dirname(os.path.abspath(__file__))
+if _curr_dir not in sys.path:
+    sys.path.insert(0, _curr_dir)
+
+try:
+    import flash_attn
+except ImportError:
+    try:
+        import flash_attn_compat
+    except Exception:
+        pass
+
+
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import json
 import time

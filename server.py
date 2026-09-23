@@ -65,6 +65,33 @@ TRASH_DIR.mkdir(parents=True, exist_ok=True)
 AVATARS_DIR.mkdir(parents=True, exist_ok=True)
 AUDIO_LIBRARY_DIR.mkdir(parents=True, exist_ok=True)
 
+def ensure_flash_attn_shim():
+    """Ensure FlashAttention drop-in compatibility shim is registered in Python site-packages and sys.modules."""
+    try:
+        import flash_attn
+    except ImportError:
+        try:
+            import site
+            shim_src = BASE_DIR / "flash_attn_compat.py"
+            if shim_src.exists():
+                for sp in site.getsitepackages():
+                    fa_dir = Path(sp) / "flash_attn"
+                    fa_dir.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(shim_src, fa_dir / "__init__.py")
+                    fa_if_dir = Path(sp) / "flash_attn_interface"
+                    fa_if_dir.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(shim_src, fa_if_dir / "__init__.py")
+                print(f"[{time.strftime('%H:%M:%S')}] ⚡ Installed FlashAttention PyTorch SDPA compatibility shim into site-packages.")
+        except Exception:
+            pass
+    try:
+        import flash_attn_compat
+    except Exception:
+        pass
+
+ensure_flash_attn_shim()
+
+
 active_tasks = {}
 task_queue = queue.Queue()
 sequential_queue = task_queue
