@@ -17,35 +17,37 @@ Production-ready Conversational Video Avatar Generation System powered by **Long
 
 ---
 
-## 🚀 1-Click Automated Setup (Vast.ai, RunPod, Lambda, etc.)
+## 🚀 1-Click Automated Deployment (New Cloud GPU Server / Local Server)
 
-Whenever you spin up a new GPU server instance, run the following single command in terminal:
+If you want to install, deploy, and run the complete LongCat-Avatar-1.5 Studio Master on any **new cloud GPU server** (e.g. Vast.ai, RunPod, Lambda Labs, AutoDL) or **local Linux GPU machine**, run this single command in your terminal:
 
+### 🔹 For Cloud GPU Instances (Vast.ai, RunPod, Lambda — Standard `/workspace`):
 ```bash
-git clone https://github.com/azadhossainofficial/LongCat-Avatar-1.5.git /workspace/LongCat-Video && cd /workspace/LongCat-Video && bash install.sh
+git clone https://github.com/azadhossainofficial/LongCat-Avatar-1.5.git /workspace/LongCat-Video && cd /workspace/LongCat-Video && bash deploy_new_server.sh
 ```
 
-### What `install.sh` does automatically:
-1. Installs system audio/video libraries (`ffmpeg`, `libsndfile1`, `git-lfs`, `curl`).
-2. Configures Python virtual environment and installs all dependencies (`requirements.txt`, `requirements_avatar.txt`, `requirements_ui.txt`).
-3. Automatically downloads official LongCat-Video-Avatar-1.5 and Wan VAE model weights from HuggingFace to `./weights/`.
-4. Sets up directory structure and initial state registries.
-5. Generates `start_studio.sh` for easy one-line service management.
+### 🔹 For Local GPU Server or Custom Directory:
+```bash
+git clone https://github.com/azadhossainofficial/LongCat-Avatar-1.5.git && cd LongCat-Avatar-1.5 && bash deploy_new_server.sh
+```
+
+### ⚡ What `deploy_new_server.sh` does automatically:
+1. **Codebase Sync:** Clones and syncs the 100% production-ready Studio Master codebase.
+2. **Environment Auto-Detection:** Automatically detects Python environment (`/venv/main/bin/python`, `/opt/conda/bin/python`, or system `python3`).
+3. **System Packages:** Installs required media libraries (`ffmpeg`, `libsndfile1`, `git-lfs`, `curl`, `wget`).
+4. **Python Dependencies:** Installs all core DiT, Whisper Large-v3, Wan-VAE, and FastAPI Web UI dependencies (`requirements.txt`, `requirements_avatar.txt`, `requirements_ui.txt`).
+5. **Model Weights:** Automatically verifies and downloads official LongCat-Video-Avatar-1.5 and Wan VAE weights from HuggingFace to `./weights/`.
+6. **Instant Launch:** Starts the Studio Master Web UI immediately on **Port 20100**.
 
 ---
 
-## 🖥️ Launching the Studio Server
+## 🖥️ Accessing the Studio Web UI
 
-To start the studio server manually:
-```bash
-cd /workspace/LongCat-Video
-./start_studio.sh
-```
-
-The Web UI will be live at:
+Once the deployment finishes, the Web UI is live at:
 ```
 http://<SERVER_IP>:20100
 ```
+*(If deploying on Vast.ai, you can also map port 20100 or use standard port 8080)*
 
 ---
 
