@@ -1405,18 +1405,31 @@ def execute_avatar_generation(task_id: str):
         subprocess.run(["pkill", "-9", "-f", "run_demo_avatar_single_audio_to_video.py"], capture_output=True)
 
         # Find final rendered MP4 in output directory with auto-recovery for long-form generations
-        found_videos = [f for f in task_output_dir.glob("video_continue_*.mp4") if not f.name.endswith("-cropvideo.mp4") and not f.name.endswith("-temp.mp4")]
+        found_videos = [f for f in task_output_dir.glob("video_continue_*.mp4") if not f.name.endswith("-cropvideo.mp4") and not f.name.endswith("-temp.mp4") and f.stat().st_size > 10000]
         if not found_videos:
-            found_videos = [f for f in task_output_dir.glob("*.mp4") if not f.name.endswith("-cropvideo.mp4") and not f.name.endswith("-temp.mp4")]
+            found_videos = [f for f in task_output_dir.glob("ai2v_demo_*.mp4") if not f.name.endswith("-cropvideo.mp4") and not f.name.endswith("-temp.mp4") and f.stat().st_size > 10000]
+        if not found_videos:
+            found_videos = [f for f in task_output_dir.glob("*.mp4") if not f.name.endswith("-cropvideo.mp4") and not f.name.endswith("-temp.mp4") and f.stat().st_size > 10000]
 
-        if proc.returncode != 0 and not found_videos and task.get("status") not in ["error", "cancelled"]:
-            task["status"] = "error"
-            task["stage"] = f"Error: Generation engine exited with code {proc.returncode}"
-            task["logs"].append(f"[{time.strftime('%H:%M:%S')}] [ERROR] Process exited with error code {proc.returncode}.")
+        is_user_cancelled = task.get("was_cancelled") or task.get("status") == "cancelled" or "Cancelled" in str(task.get("stage", ""))
+
+        if proc.returncode != 0 and not found_videos:
+            if is_user_cancelled:
+                task["status"] = "cancelled"
+                task["stage"] = "Cancelled by user"
+                task["logs"].append(f"[{time.strftime('%H:%M:%S')}] [CANCELLED] Generation stopped by user before first segment completed.")
+            else:
+                task["status"] = "error"
+                task["stage"] = f"Error: Generation engine exited with code {proc.returncode}"
+                task["logs"].append(f"[{time.strftime('%H:%M:%S')}] [ERROR] Process exited with error code {proc.returncode}.")
             save_active_tasks_to_disk()
             return
-        elif proc.returncode != 0 and found_videos:
-            task["logs"].append(f"[{time.strftime('%H:%M:%S')}] ⚠️ Generation stopped early (exit code {proc.returncode}). Rescuing completed segments...")
+        elif found_videos:
+            if is_user_cancelled:
+                task["logs"].append(f"[{time.strftime('%H:%M:%S')}] 🛑 User stopped generation. Rescuing and packaging all completed video segments...")
+                task["stage"] = "Packaging completed segments into Studio Master..."
+            elif proc.returncode != 0:
+                task["logs"].append(f"[{time.strftime('%H:%M:%S')}] ⚠️ Generation stopped early (exit code {proc.returncode}). Rescuing completed segments...")
 
         if not found_videos:
             task["status"] = "error"
@@ -1429,7 +1442,10 @@ def execute_avatar_generation(task_id: str):
         def sort_key(p):
             m = re.search(r'video_continue_(\d+)', p.stem)
             if m:
-                return (1, int(m.group(1)))
+                return (2, int(m.group(1)))
+            m2 = re.search(r'ai2v_demo_(\d+)', p.stem)
+            if m2:
+                return (1, int(m2.group(1)))
             return (0, p.stat().st_mtime)
 
         found_videos.sort(key=sort_key, reverse=True)
@@ -2321,12 +2337,22 @@ class LongCatStudioHandler(SimpleHTTPRequestHandler):
                 proc = active_processes.pop(tid, None)
                 if proc:
                     try:
+                        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+                    except Exception:
+                        try:
+                            proc.terminate()
+                        except Exception:
+                            pass
+                    time.sleep(1.0)
+                    try:
                         os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
                     except Exception:
                         try:
                             proc.kill()
                         except Exception:
                             pass
+                subprocess.run(["pkill", "-15", "-f", "run_demo_avatar_single_audio_to_video.py"], capture_output=True)
+                time.sleep(0.5)
                 subprocess.run(["pkill", "-9", "-f", "torch.distributed.run"], capture_output=True)
                 subprocess.run(["pkill", "-9", "-f", "run_demo_avatar_single_audio_to_video.py"], capture_output=True)
 

@@ -330,9 +330,13 @@ from longcat_video.context_parallel import context_parallel_util
 from audio_separator.separator import Separator
 
 def async_save_video_ffmpeg(frames, save_path, audio_path, fps=25, quality=5):
+    global active_saver_thread
+    if active_saver_thread is not None and active_saver_thread.is_alive():
+        active_saver_thread.join(timeout=30)
     t = threading.Thread(target=save_video_ffmpeg, args=(frames, save_path, audio_path, fps, quality))
     t.daemon = True
     t.start()
+    active_saver_thread = t
     return t
 
 
@@ -829,6 +833,7 @@ def generate(args):
             if cp_rank == 0:
                 output_tensor = torch.from_numpy(np.array(video))
                 save_video_ffmpeg(output_tensor, os.path.join(output_dir, "ai2v_demo_1"), raw_speech_path, fps=save_fps, quality=5)
+                save_video_ffmpeg(output_tensor, os.path.join(output_dir, "video_continue_1"), raw_speech_path, fps=save_fps, quality=5)
                 del output_tensor
             torch_gc()
     else:
@@ -1057,7 +1062,7 @@ def generate(args):
         total_audio_frames = full_audio_emb.shape[0] // audio_stride
         audio_complete = (len(all_generated_frames) >= total_audio_frames)
         is_final_segment = (segment_idx == num_segments - 1) or audio_complete
-        save_interval = 5  # Save intermediate video checkpoint every 5 segments (~15 mins) to protect progress
+        save_interval = 1  # Save every completed segment immediately to protect progress and allow instant rescue on stop/cancel
         if cp_rank == 0 and (is_final_segment or ((segment_idx + 1) % save_interval == 0)):
             save_path = os.path.join(output_dir, f"video_continue_{segment_idx+1}")
 
