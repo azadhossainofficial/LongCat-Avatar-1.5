@@ -1,20 +1,24 @@
 #!/bin/bash
-# ========================================================
-# Stop Audio Library Background Watcher Daemon
-# ========================================================
+# =========================================================================
+# LongCat Audio Library — Stop Automated Background Sync
+# =========================================================================
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PID_FILE="${SCRIPT_DIR}/.audio_watcher.pid"
+PLIST_FILE="${HOME}/Library/LaunchAgents/com.longcat.audio_watcher.plist"
 
-if [ -f "$PID_FILE" ]; then
-  PID=$(cat "$PID_FILE")
-  if ps -p "$PID" > /dev/null 2>&1; then
-    kill "$PID"
-    echo "🛑 Stopped Audio Library Watcher (PID: $PID)."
-  else
-    echo "ℹ️  Watcher was not running."
-  fi
-  rm -f "$PID_FILE"
+echo "🛑 Stopping LongCat Audio Library Auto-Sync Service..."
+
+if [ -f "$PLIST_FILE" ]; then
+    launchctl unload -w "$PLIST_FILE" 2>/dev/null
+fi
+
+pkill -f "audio_library_watcher.py" 2>/dev/null
+pkill -f "rsync.*audio_library" 2>/dev/null
+
+sleep 1
+
+if ! pgrep -f "audio_library_watcher.py" > /dev/null; then
+    echo "✅ অটো-সিঙ্ক সার্ভিস সফলভাবে বন্ধ করা হয়েছে।"
 else
-  pkill -f "audio_library_watcher.py" 2>/dev/null && echo "🛑 Stopped background watcher." || echo "ℹ️  No watcher process found."
+    pkill -9 -f "audio_library_watcher.py" 2>/dev/null
+    echo "✅ ফোর্স স্টপ সম্পন্ন হয়েছে।"
 fi
