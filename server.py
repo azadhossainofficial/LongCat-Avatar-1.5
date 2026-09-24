@@ -3342,7 +3342,7 @@ if __name__ == "__main__":
     t = threading.Thread(target=background_queue_worker, args=(0,), daemon=True)
     t.start()
     worker_threads.append(t)
-    ports = [8080, 20100, 7860]
+    ports = [20100, 7860]
     if len(sys.argv) > 1:
         try:
             custom_p = int(sys.argv[1])
