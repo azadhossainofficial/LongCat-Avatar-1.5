@@ -11,19 +11,17 @@
 
 const DEFAULT_POSITIVE_PROMPT = `Use the uploaded image exactly as the reference. Preserve the same man, face, hairstyle, facial hair, skin tone, clothing, body proportions, framing, lighting, and natural colors.
 
-Professional man speaking naturally and calmly with smooth accurate lip sync, relaxed gentle jaw movement, closed relaxed mouth during pauses, subtle cheek motion, and natural irregular blinking. Conversational calm voice cadence, natural human eye contact without weird staring, darting eyes, or robotic expressions.
+Professional man speaking naturally, calmly, and politely with smooth accurate lip sync, restrained natural mouth aperture, controlled gentle jaw movement, and relaxed closed mouth during pauses. Natural conversational voice cadence, steady dignified eye contact, relaxed facial expressions, and natural irregular blinking without weird staring or darting eyes.
 
-Gentle organic breathing with subtle chest and shoulder micro-movements. Composed, relaxed masculine posture with natural head micro-movements and subtle occasional nods.
-
-Relaxed natural upper-body posture with subtle organic breathing, realistic chest rise and fall, and gentle shoulder micro-movements.
+Gentle organic breathing with subtle chest and shoulder rise and fall. Composed, dignified presenter with stable upright head posture and poised neck. Calm, polite delivery with steady centered head alignment, zero wild head shaking, zero head bobbing, zero erratic tilting, and zero side-to-side swaying. Maintain composed realistic upper-body posture without repetitive rocking or excessive gestures.
 
 Locked stationary tripod camera. Zero zoom in, zero zoom out, no pan, no tilt, no camera shake, no forward leaning, and completely static background.
 
 Preserve identity, facial features, beard texture, clothing, lighting, and photographic realism throughout. Natural matte masculine lips with zero lipstick or gloss, authentic skin tone matching reference photo exactly. Avoid aggressive speech, wide mouth opening, jaw stretching, robotic motion, or exaggerated facial expressions.
 
-Final result should look like a real authentic human man naturally speaking in a calm podcast or interview.`;
+Final result should look like a real authentic human man speaking calmly, politely, and professionally in a high-end podcast or interview.`;
 
-const DEFAULT_NEGATIVE_PROMPT = `Aggressive speech, shouting, yelling, loud forceful talking, wide open mouth, gaping mouth, over-opened mouth, jaw tension, unhinged jaw, forced facial strain, clenched teeth, robotic mouth stretching, popping neck veins, exaggerated head shaking, sudden fast movements, exaggerated expressions, strange staring, darting eyes, wide eyes, artificial grimace, unnatural eye movement, AI uncanny valley look.
+const DEFAULT_NEGATIVE_PROMPT = `Aggressive speech, shouting, yelling, loud forceful talking, wide mouth opening, wide open mouth, gaping mouth, over-opened mouth, shouting mouth, wide jaw drop, unhinged jaw, dropped jaw, stretching jaw, loose mouth, gaping oral cavity, forced facial strain, jaw tension, clenched teeth, robotic mouth stretching, dramatic mouth movement, excessive lip flapping, wide toothy speech, popping neck veins, exaggerated head shaking, head bobbing, head swaying, head rolling, head tilting, erratic head jerks, nodding head, side-to-side head shaking, wobbling head, unstable head posture, jerky neck, neck twisting, neck stretching, neck swaying, bobblehead, wild gestures, chaotic motion, restless posture, sudden fast movements, exaggerated expressions, strange staring, darting eyes, wide eyes, artificial grimace, unnatural eye movement, AI uncanny valley look.
 
 Moving hands while speaking, conversational hand gestures, talking with hands, gesturing with hands, raising hands to emphasize speech, hand movements synced to speech cadence or style, expressive hand gestures, repetitive hand gestures, waving hands, moving arms, hands entering frame, hands rising, fidgeting hands, touching face, touching hair, touching chest, finger distortion, extra fingers, missing fingers, deformed hands, broken wrists, unnatural hands.
 
@@ -41,19 +39,19 @@ Face distortion, body warping, anatomy distortion, deformed features, low qualit
 
 const FEMALE_POSITIVE_PROMPT = `Use the uploaded image exactly as the reference. Preserve the same woman, face, hairstyle, skin tone, clothing, body proportions, framing, lighting, and natural colors.
 
-Professional woman speaking naturally with smooth accurate lip sync, relaxed facial expressions, natural irregular blinking, subtle jaw and cheek movement, and lips closing naturally during pauses.
+Professional woman speaking naturally, calmly, and politely with smooth accurate lip sync, restrained natural mouth aperture, controlled gentle jaw movement, and relaxed closed lips during pauses. Natural conversational delivery, steady dignified eye gaze, relaxed facial expressions, subtle cheek motion, and natural irregular blinking.
 
-Gentle organic breathing with subtle chest and shoulder rise and fall. Her breasts will bounce while she talks naturally, with realistic weight and soft secondary motion caused by breathing, speech, and tiny posture shifts. Keep it natural and never exaggerated or repetitive.
+Gentle organic breathing with subtle chest and shoulder rise and fall. Her breasts will bounce while she talks naturally, with realistic weight and soft secondary motion caused by breathing and speech. Keep it natural and never exaggerated or repetitive.
 
-Maintain relaxed realistic upper-body posture with subtle shoulder, neck, head, and torso micro-movements. Allow tiny occasional head nods and natural posture adjustments without repetitive swaying, rocking, or excessive gestures.
+Composed, dignified presenter with stable upright head posture and poised neck. Calm, polite delivery with steady centered head alignment, zero wild head shaking, zero head bobbing, zero erratic tilting, and zero side-to-side swaying. Maintain poised realistic upper-body posture without repetitive rocking or excessive gestures.
 
 Locked stationary tripod camera. Zero zoom in, zero zoom out, no pan, no tilt, no camera shake, no forward leaning, and completely static background.
 
-Preserve identity, anatomy, clothing, lighting, and image consistency throughout. Avoid face distortion, body warping, chest distortion, lip jitter, robotic motion, repetitive movement, or exaggerated expressions.
+Preserve identity, anatomy, clothing, lighting, and image consistency throughout. Avoid face distortion, body warping, chest distortion, lip jitter, robotic motion, repetitive movement, wide mouth opening, or exaggerated expressions.
 
-Final result should look like a real professional woman naturally speaking in a podcast.`;
+Final result should look like a real professional woman speaking calmly, politely, and naturally in a high-end podcast or interview.`;
 
-const FEMALE_NEGATIVE_PROMPT = `Aggressive speech, shouting, wide over-opened mouth, forced facial strain, jaw tension, clenched teeth, robotic mouth stretching, popping neck veins, exaggerated head shaking, sudden fast movements, aggressive gestures.
+const FEMALE_NEGATIVE_PROMPT = `Aggressive speech, shouting, yelling, loud forceful talking, wide mouth opening, wide open mouth, gaping mouth, over-opened mouth, shouting mouth, wide jaw drop, unhinged jaw, dropped jaw, stretching jaw, loose mouth, gaping oral cavity, forced facial strain, jaw tension, clenched teeth, robotic mouth stretching, dramatic mouth movement, excessive lip flapping, wide toothy speech, popping neck veins, exaggerated head shaking, head bobbing, head swaying, head rolling, head tilting, erratic head jerks, nodding head, side-to-side head shaking, wobbling head, unstable head posture, jerky neck, neck twisting, neck stretching, neck swaying, bobblehead, wild gestures, chaotic motion, restless posture, sudden fast movements, aggressive gestures.
 
 Moving hands while speaking, conversational hand gestures, talking with hands, gesturing with hands, raising hands to emphasize speech, hand movements synced to speech cadence or style, expressive hand gestures, repetitive hand gestures, waving hands, moving arms, hands entering frame, touching hair, face, or chest, excessive hand movement, finger distortion, extra or missing fingers, fused or deformed fingers, broken wrists, unnatural hands, ring morphing or flickering, changing nail color, nail morphing.
 

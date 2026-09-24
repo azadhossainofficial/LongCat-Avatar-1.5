@@ -948,7 +948,8 @@ def execute_avatar_generation(task_id: str):
         "zooming in, zooming out, camera zoom, camera drift, camera shift, camera panning, camera movement, changing focal length, scaling shift, scale changes, jumping framing, "
         "leaning forward, lunging forward, moving closer to camera, head pitching forward, forward torso lean, bowing head, lunging head, camera intrusion, body distortion, "
         "cars, vehicles, traffic, road traffic, moving cars, automobiles, pedestrians, walking people, people in background, crowd, bystanders, background figures, animals, birds, random objects appearing, morphing background, background distortion, "
-        "wide open mouth, gaping mouth, over-opened mouth, shouting mouth, wide jaw extension, exaggerated mouth opening, unhinged jaw, robotic mouth stretching, overacting, rubber lips, "
+        "exaggerated head movement, head shaking, head bobbing, head swaying, head rolling, head tilting, erratic head jerks, nodding head, side-to-side head shaking, wobbling head, unstable head posture, jerky neck, neck twisting, neck stretching, neck swaying, bobblehead, wild gestures, chaotic motion, restless posture, "
+        "wide mouth opening, wide open mouth, gaping mouth, over-opened mouth, shouting mouth, wide jaw extension, wide jaw drop, unhinged jaw, dropped jaw, stretching jaw, loose mouth, gaping oral cavity, robotic mouth stretching, overacting, rubber lips, dramatic mouth movement, excessive lip flapping, wide toothy speech, screaming mouth, excessive mouth movements, exaggerated mouth articulation, dramatic speech, "
         "dark lips, smoky lips, blackened lips, discolored lips, dirty lips, burnt lips, stained lips, smoking lips, pink lips, red lips, magenta lips, purple lips, violet lips, blue lips, cyan lips, bruised lips, lipstick, shiny lips, glossy lips, painted lips, unnatural lip tone, lip gloss, lip recoloring, "
         "changing teeth, distorted teeth, morphing teeth, crooked teeth, shifting teeth shape, abnormal teeth, yellowing teeth, multiple teeth rows, blurry teeth, deformed mouth, distorted lips, mouth morphing, identity changes, "
         "angry face, aggressive expression, jaw tension, facial strain, popping neck veins, clenched teeth, forced shouting, plastic skin, doll face, artificial smoothing, blur filter, airbrush, cartoonish, oversaturated, color distortion, "
@@ -957,7 +958,7 @@ def execute_avatar_generation(task_id: str):
     
     full_negative = f"{negative_prompt}, {default_negative}".strip(", ") if negative_prompt else default_negative
 
-    # Clean any outdated phrases that could trigger camera zooming, posture lunges, or unnatural freeze
+    # Clean any outdated phrases that could trigger camera zooming, posture lunges, head nodding, or unnatural freeze
     clean_p = prompt
     if "breasts will bounce" not in prompt.lower() and "preserve the same woman" not in prompt.lower():
         clean_p = clean_p.replace("full expressive lifelike upper body motion", "fixed camera portrait, stationary posture")
@@ -967,6 +968,11 @@ def execute_avatar_generation(task_id: str):
         clean_p = clean_p.replace("perfectly still body", "natural relaxed body")
         clean_p = clean_p.replace("completely still torso", "natural upper body")
         clean_p = clean_p.replace("still torso", "natural upper body")
+        clean_p = clean_p.replace("occasional head nods", "stable upright head and poised neck")
+        clean_p = clean_p.replace("subtle occasional nods", "stable upright head and poised neck")
+        clean_p = clean_p.replace("head micro-movements and subtle occasional nods", "stable upright head posture and poised neck")
+        clean_p = clean_p.replace("subtle shoulder, neck, head, and torso micro-movements", "stable upright head posture, poised neck, and gentle breathing")
+        clean_p = clean_p.replace("natural head micro-movements", "stable upright head alignment")
         clean_p = clean_p.replace("pink", "").replace("lipstick", "").replace("lipstick-like", "").replace("purple", "").replace("violet", "").strip()
 
     gender = task.get("gender", "male").lower()
@@ -1013,15 +1019,15 @@ def execute_avatar_generation(task_id: str):
     if gender == "female":
         female_positive_prompt = (
             "Use the uploaded image exactly as the reference. Preserve the same woman, face, hairstyle, skin tone, clothing, body proportions, framing, lighting, and natural colors.\n\n"
-            "Professional woman speaking naturally with smooth accurate lip sync, relaxed facial expressions, natural irregular blinking, subtle jaw and cheek movement, and lips closing naturally during pauses.\n\n"
-            "Gentle organic breathing with subtle chest and shoulder rise and fall. Her breasts will bounce while she talks naturally, with realistic weight and soft secondary motion caused by breathing, speech, and tiny posture shifts. Keep it natural and never exaggerated or repetitive.\n\n"
-            f"Maintain relaxed realistic upper-body posture with subtle shoulder, neck, head, and torso micro-movements. Allow tiny occasional head nods and natural posture adjustments without repetitive swaying, rocking, or excessive gestures. {hand_pos_guidance}\n\n"
+            "Professional woman speaking naturally, calmly, and politely with smooth accurate lip sync, restrained natural mouth aperture, controlled gentle jaw movement, and relaxed closed lips during pauses. Natural conversational delivery, steady dignified eye gaze, relaxed facial expressions, subtle cheek motion, and natural irregular blinking.\n\n"
+            "Gentle organic breathing with subtle chest and shoulder rise and fall. Her breasts will bounce while she talks naturally, with realistic weight and soft secondary motion caused by breathing and speech. Keep it natural and never exaggerated or repetitive.\n\n"
+            f"Composed, dignified presenter with stable upright head posture and poised neck. Calm, polite delivery with steady centered head alignment, zero wild head shaking, zero head bobbing, zero erratic tilting, and zero side-to-side swaying. Maintain poised realistic upper-body posture without repetitive rocking or excessive gestures. {hand_pos_guidance}\n\n"
             "Locked stationary tripod camera. Zero zoom in, zero zoom out, no pan, no tilt, no camera shake, no forward leaning, and completely static background.\n\n"
-            "Preserve identity, anatomy, clothing, lighting, and image consistency throughout. Avoid face distortion, body warping, chest distortion, lip jitter, robotic motion, repetitive movement, or exaggerated expressions.\n\n"
-            "Final result should look like a real professional woman naturally speaking in a podcast."
+            "Preserve identity, anatomy, clothing, lighting, and image consistency throughout. Avoid face distortion, body warping, chest distortion, lip jitter, robotic motion, repetitive movement, wide mouth opening, or exaggerated expressions.\n\n"
+            "Final result should look like a real professional woman speaking calmly, politely, and naturally in a high-end podcast or interview."
         )
         female_negative_prompt = (
-            "Aggressive speech, shouting, wide over-opened mouth, forced facial strain, jaw tension, clenched teeth, robotic mouth stretching, popping neck veins, exaggerated head shaking, sudden fast movements, aggressive gestures.\n\n"
+            "Aggressive speech, shouting, yelling, loud forceful talking, wide mouth opening, wide open mouth, gaping mouth, over-opened mouth, shouting mouth, wide jaw drop, unhinged jaw, dropped jaw, stretching jaw, loose mouth, gaping oral cavity, forced facial strain, jaw tension, clenched teeth, robotic mouth stretching, dramatic mouth movement, excessive lip flapping, wide toothy speech, popping neck veins, exaggerated head shaking, head bobbing, head swaying, head rolling, head tilting, erratic head jerks, nodding head, side-to-side head shaking, wobbling head, unstable head posture, jerky neck, neck twisting, neck stretching, neck swaying, bobblehead, wild gestures, chaotic motion, restless posture, sudden fast movements, aggressive gestures.\n\n"
             f"{hand_neg_guidance}, excessive hand movement, finger distortion, extra or missing fingers, fused or deformed fingers, broken wrists, unnatural hands, ring morphing or flickering, changing nail color, nail morphing.\n\n"
             "Frozen body, stiff mannequin posture, robotic posture, wooden torso, artificial paralysis, frozen chest, locked shoulders.\n\n"
             "Zoom in, zoom out, camera movement, camera drift, pan, tilt, framing shift, focal-length change, scale change, camera shake, frame vibration, jumping cuts.\n\n"
@@ -1055,15 +1061,14 @@ def execute_avatar_generation(task_id: str):
     else:
         male_positive_prompt = (
             "Use the uploaded image exactly as the reference. Preserve the same man, face, hairstyle, facial hair, skin tone, clothing, body proportions, framing, lighting, and natural colors.\n\n"
-            "Professional man speaking naturally and calmly with smooth accurate lip sync, relaxed gentle jaw movement, closed relaxed mouth during pauses, subtle cheek motion, and natural irregular blinking. Conversational calm voice cadence, natural human eye contact without weird staring, darting eyes, or robotic expressions.\n\n"
-            "Gentle organic breathing with subtle chest and shoulder micro-movements. Composed, relaxed masculine posture with natural head micro-movements and subtle occasional nods.\n\n"
-            f"Maintain composed realistic upper-body posture with subtle shoulder, neck, head, and torso micro-movements. Allow tiny occasional head nods and natural posture adjustments without repetitive swaying, rocking, or excessive gestures. {hand_pos_guidance}\n\n"
+            "Professional man speaking naturally, calmly, and politely with smooth accurate lip sync, restrained natural mouth aperture, controlled gentle jaw movement, and relaxed closed mouth during pauses. Natural conversational voice cadence, steady dignified eye contact, relaxed facial expressions, and natural irregular blinking without weird staring or darting eyes.\n\n"
+            "Gentle organic breathing with subtle chest and shoulder rise and fall. Composed, dignified presenter with stable upright head posture and poised neck. Calm, polite delivery with steady centered head alignment, zero wild head shaking, zero head bobbing, zero erratic tilting, and zero side-to-side swaying. Maintain composed realistic upper-body posture without repetitive rocking or excessive gestures. {hand_pos_guidance}\n\n"
             "Locked stationary tripod camera. Zero zoom in, zero zoom out, no pan, no tilt, no camera shake, no forward leaning, and completely static background.\n\n"
-            "Preserve identity, facial features, beard texture, clothing, lighting, and photographic realism throughout. Avoid aggressive speech, wide mouth opening, jaw stretching, robotic motion, or exaggerated facial expressions.\n\n"
-            "Final result should look like a real authentic human man naturally speaking in a calm podcast or interview."
+            "Preserve identity, facial features, beard texture, clothing, lighting, and photographic realism throughout. Natural matte masculine lips with zero lipstick or gloss, authentic skin tone matching reference photo exactly. Avoid aggressive speech, wide mouth opening, jaw stretching, robotic motion, or exaggerated facial expressions.\n\n"
+            "Final result should look like a real authentic human man speaking calmly, politely, and professionally in a high-end podcast or interview."
         )
         male_negative_prompt = (
-            "Aggressive speech, shouting, yelling, loud forceful talking, wide open mouth, gaping mouth, over-opened mouth, jaw tension, unhinged jaw, forced facial strain, clenched teeth, robotic mouth stretching, popping neck veins, exaggerated head shaking, sudden fast movements, exaggerated expressions, strange staring, darting eyes, wide eyes, artificial grimace, unnatural eye movement, AI uncanny valley look.\n\n"
+            "Aggressive speech, shouting, yelling, loud forceful talking, wide mouth opening, wide open mouth, gaping mouth, over-opened mouth, shouting mouth, wide jaw drop, unhinged jaw, dropped jaw, stretching jaw, loose mouth, gaping oral cavity, forced facial strain, jaw tension, clenched teeth, robotic mouth stretching, dramatic mouth movement, excessive lip flapping, wide toothy speech, popping neck veins, exaggerated head shaking, head bobbing, head swaying, head rolling, head tilting, erratic head jerks, nodding head, side-to-side head shaking, wobbling head, unstable head posture, jerky neck, neck twisting, neck stretching, neck swaying, bobblehead, wild gestures, chaotic motion, restless posture, sudden fast movements, exaggerated expressions, strange staring, darting eyes, wide eyes, artificial grimace, unnatural eye movement, AI uncanny valley look.\n\n"
             f"{hand_neg_guidance}, excessive hand movement, finger distortion, extra or missing fingers, fused or deformed fingers, broken wrists, unnatural hands.\n\n"
             "Frozen body, stiff mannequin posture, robotic posture, wooden torso, artificial paralysis, frozen chest, locked shoulders.\n\n"
             "Zoom in, zoom out, camera movement, camera drift, pan, tilt, framing shift, focal-length change, scale change, camera shake, frame vibration, jumping cuts.\n\n"
@@ -1209,7 +1214,8 @@ def execute_avatar_generation(task_id: str):
         f"--generation_mode={gen_mode}",
         f"--transition_overlap_frames={overlap_frames}",
         f"--context_parallel_size={cp_size}",
-        f"--lock_hands={'false' if detected_hand_mode == 'natural' else ('true' if detected_hand_mode == 'bust_locked' else 'auto')}"
+        f"--lock_hands={'false' if detected_hand_mode == 'natural' else ('true' if detected_hand_mode == 'bust_locked' else 'auto')}",
+        "--audio_guidance_scale=0.90"
     ]
     if use_int8:
         cmd.append("--use_int8")
