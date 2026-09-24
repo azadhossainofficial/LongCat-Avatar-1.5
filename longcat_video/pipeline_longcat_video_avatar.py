@@ -986,7 +986,7 @@ class LongCatVideoAvatarPipeline:
         image: PipelineImageInput,
         prompt: Union[str, List[str]] = None,
         negative_prompt: Union[str, List[str]] = None,
-        resolution: Literal["500p", "540p", "520p", "580p", "600p", "700p", "720p", "480p"] = "500p",
+        resolution: Literal["500p", "540p", "560p", "520p", "580p", "600p", "700p", "720p", "480p"] = "500p",
         num_frames: int = 93,
         num_inference_steps: int = 50,
         use_distill: bool = False,

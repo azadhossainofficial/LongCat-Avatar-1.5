@@ -499,12 +499,18 @@ def generate(args):
             height, width = 896, 512
         else:
             height, width = 512, 896
-    elif resolution in ['540p', '540', '520p', '520', '580p', '580', '544x960', '960x544', '736x736']:
+    elif resolution in ['540p', '540', '544x960', '960x544', '736x736']:
         resolution = '540p'
         if is_portrait:
             height, width = 960, 544
         else:
             height, width = 544, 960
+    elif resolution in ['560p', '560', '576p', '576', '520p', '520', '580p', '580', '576x1024', '1024x576']:
+        resolution = '560p'
+        if is_portrait:
+            height, width = 1024, 576
+        else:
+            height, width = 576, 1024
     elif resolution in ['600p', '600', '608x1024', '1024x608', '768x768']:
         resolution = '600p'
         if is_portrait:
@@ -1105,7 +1111,7 @@ def _parse_args():
         '--resolution',
         type=str,
         default='500p',
-        choices=['500p', '540p', '520p', '580p', '600p', '700p', '720p', '1080p', '480p']
+        choices=['500p', '540p', '560p', '520p', '580p', '600p', '700p', '720p', '1080p', '480p']
     )
     parser.add_argument(
         '--num_segments',

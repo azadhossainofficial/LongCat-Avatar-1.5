@@ -255,6 +255,15 @@ def get_bucket_config(resolution, scale_factor_spatial):
             return ASPECT_RATIO_720_F128
         elif scale_factor_spatial == 256:
             return ASPECT_RATIO_720_F256
+    elif resolution_str in ['560p', '560', '576p', '576']:
+        if scale_factor_spatial == 16 or scale_factor_spatial == 32:
+            return ASPECT_RATIO_768
+        elif scale_factor_spatial == 64:
+            return ASPECT_RATIO_768_F64
+        elif scale_factor_spatial == 128:
+            return ASPECT_RATIO_768_F128
+        elif scale_factor_spatial == 256:
+            return ASPECT_RATIO_768_F256
     elif resolution_str in ['600p', '600']:
         if scale_factor_spatial == 16 or scale_factor_spatial == 32:
             return ASPECT_RATIO_768

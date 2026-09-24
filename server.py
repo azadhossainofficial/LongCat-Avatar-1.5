@@ -236,6 +236,8 @@ def get_resolution_badge(res_str: str) -> str:
     r = str(res_str or "").lower().strip()
     if any(x in r for x in ["500p", "500", "512"]):
         return "500p DiT"
+    elif any(x in r for x in ["560p", "560", "576"]):
+        return "560p DiT"
     elif any(x in r for x in ["540p", "540", "544", "960"]):
         return "540p DiT"
     elif any(x in r for x in ["600p", "600", "608", "1024"]):
@@ -1169,16 +1171,18 @@ def execute_avatar_generation(task_id: str):
         else:
             task["logs"].append(f"[{time.strftime('%H:%M:%S')}] ✨ [ENGINE] BF16 Studio Master active (Pure BF16 Precision • {sys_gpu}).")
 
-    # Exact DiT resolution mapping: 500p (512x896), 540p (544x960), 600p (608x1024), 700p, 480p
+    # Exact DiT resolution mapping: 500p (512x896), 560p (576x1024), 540p (544x960), 600p (608x1024), 700p, 480p
     raw_res = str(resolution).lower().strip()
     if any(x in raw_res for x in ["500p", "500", "512"]):
         res_arg = "500p"
+    elif any(x in raw_res for x in ["560p", "560", "576"]):
+        res_arg = "560p"
     elif any(x in raw_res for x in ["540p", "540", "544"]):
         res_arg = "540p"
     elif any(x in raw_res for x in ["600p", "600", "608"]):
         res_arg = "600p"
     elif any(x in raw_res for x in ["520p", "520", "580"]):
-        res_arg = "540p"
+        res_arg = "560p"
     elif any(x in raw_res for x in ["480p", "480", "832"]):
         res_arg = "480p"
     elif any(x in raw_res for x in ["700p", "700", "704", "1216", "880", "720", "1080"]):
@@ -3250,6 +3254,8 @@ class LongCatStudioHandler(SimpleHTTPRequestHandler):
             req_res = str(params.get("resolution", "500p")).strip().lower()
             if any(x in req_res for x in ["500p", "500", "512"]):
                 clean_res = "500p"
+            elif any(x in req_res for x in ["560p", "560", "576"]):
+                clean_res = "560p"
             elif any(x in req_res for x in ["540p", "540", "544"]):
                 clean_res = "540p"
             elif any(x in req_res for x in ["600p", "600", "608"]):
