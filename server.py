@@ -2793,6 +2793,45 @@ class LongCatStudioHandler(SimpleHTTPRequestHandler):
                 self.send_json_response({"error": str(e)}, status=500)
                 return
 
+        elif path == "/api/audio_library/cancel_all":
+            try:
+                content_len = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(content_len).decode("utf-8") if content_len > 0 else "{}"
+                data = json.loads(body) if body else {}
+                target_fns = data.get("filenames", [])
+                cancelled = []
+
+                if AUDIO_LIBRARY_DIR.exists():
+                    # 1. Clean any active/leftover upload tmp files
+                    for f in AUDIO_LIBRARY_DIR.iterdir():
+                        if f.is_file() and f.name.startswith(".upload_") and f.name.endswith(".tmp"):
+                            try:
+                                f.unlink(missing_ok=True)
+                                cancelled.append(f.name)
+                            except Exception:
+                                pass
+                    # 2. Clean any specific filenames sent
+                    for fn in target_fns:
+                        clean_name = Path(fn).name
+                        part_file = AUDIO_LIBRARY_DIR / f".upload_{clean_name}.tmp"
+                        if part_file.exists():
+                            try:
+                                part_file.unlink(missing_ok=True)
+                                cancelled.append(part_file.name)
+                            except Exception:
+                                pass
+
+                try:
+                    subprocess.run(["sync"], capture_output=True)
+                except Exception:
+                    pass
+
+                self.send_json_response({"success": True, "cancelled": len(cancelled)})
+                return
+            except Exception as e:
+                self.send_json_response({"error": str(e)}, status=500)
+                return
+
         elif path == "/api/calculate_segments":
             content_len = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(content_len).decode("utf-8")

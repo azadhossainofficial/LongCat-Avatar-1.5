@@ -3711,6 +3711,69 @@ function initAudioLibraryModal() {
     });
   }
 
+  const btnCancelAll = $('btnCancelAllAudioLibrary');
+  if (btnCancelAll) {
+    btnCancelAll.addEventListener('click', async () => {
+      const inFlightItems = audioLibraryData.filter(item => item.upload_status === 'uploading' || item.upload_status === 'waiting');
+      if (inFlightItems.length === 0 && audioUploadQueue.length === 0 && !isAudioUploading) {
+        showNotification('ℹ️ বর্তমানে কোনো অডিও আপলোড চলমান বা কিউতে অপেক্ষমান নেই।');
+        return;
+      }
+
+      const totalCount = inFlightItems.length || audioUploadQueue.length;
+      const confirmed = confirm(`⚠️ আপনি কি চলমান ও কিউতে থাকা সকল (${totalCount}টি) অডিও আপলোড বাতিল করতে চান?\n\n(নোট: ইতিমধ্যে সফলভাবে আপলোড হওয়া অডিও ফাইলগুলো লাইব্রেরিতে অক্ষত থাকবে)`);
+      if (!confirmed) return;
+
+      const origText = btnCancelAll.innerHTML;
+      btnCancelAll.disabled = true;
+      btnCancelAll.innerHTML = '⏳ বাতিল হচ্ছে...';
+
+      // 1. Invalidate current upload session to kill any async processing
+      currentUploadSessionId++;
+
+      // 2. Abort active upload XHR immediately
+      if (currentUploadXhr) {
+        try {
+          currentUploadXhr.abort();
+        } catch (e) {}
+        currentUploadXhr = null;
+      }
+      currentUploadingItem = null;
+
+      // 3. Clear the queue
+      const inFlightFilenames = inFlightItems.map(item => item.filename);
+      audioUploadQueue = [];
+      isAudioUploading = false;
+
+      // 4. Restore the upload button
+      const btnUpload = $('btnUploadToAudioLibrary');
+      if (btnUpload) {
+        btnUpload.disabled = false;
+        btnUpload.innerHTML = '⬆️ অডিও আপলোড';
+      }
+
+      // 5. Remove uploading and waiting items from UI data list (keep uploaded ones!)
+      audioLibraryData = audioLibraryData.filter(item => item.upload_status !== 'uploading' && item.upload_status !== 'waiting');
+      renderAudioLibraryList();
+
+      // 6. Tell server backend to cancel any partial upload streams and delete .tmp files
+      try {
+        await fetch('/api/audio_library/cancel_all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filenames: inFlightFilenames })
+        });
+      } catch (e) {
+        console.warn('cancel_all error:', e);
+      } finally {
+        btnCancelAll.disabled = false;
+        btnCancelAll.innerHTML = origText;
+      }
+
+      showNotification(`⏹️ চলমান ও কিউতে থাকা সকল (${totalCount}টি) অডিও আপলোড সফলভাবে বাতিল করা হয়েছে।`);
+    });
+  }
+
   const btnDeleteAll = $('btnDeleteAllAudioLibrary');
   if (btnDeleteAll) {
     btnDeleteAll.addEventListener('click', async () => {
@@ -4037,6 +4100,20 @@ async function fetchAndRenderAudioLibrary(isManualRefresh = false) {
 function renderAudioLibraryList(filterText = '') {
   const bodyEl = $('audioLibraryBody');
   if (!bodyEl) return;
+
+  const btnCancelAll = $('btnCancelAllAudioLibrary');
+  if (btnCancelAll) {
+    const hasInFlight = audioLibraryData.some(a => a.upload_status === 'uploading' || a.upload_status === 'waiting') || audioUploadQueue.length > 0;
+    if (hasInFlight) {
+      btnCancelAll.style.opacity = '1';
+      btnCancelAll.style.cursor = 'pointer';
+      btnCancelAll.title = 'চলমান ও কিউতে থাকা সকল আপলোড বাতিল করুন';
+    } else {
+      btnCancelAll.style.opacity = '0.55';
+      btnCancelAll.style.cursor = 'default';
+      btnCancelAll.title = 'কোনো আপলোড চলমান নেই';
+    }
+  }
 
   let filtered = audioLibraryData;
   if (filterText) {
