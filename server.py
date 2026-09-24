@@ -1158,8 +1158,8 @@ def execute_avatar_generation(task_id: str):
         task["logs"].append(f"[{time.strftime('%H:%M:%S')}] ⚡ [ENGINE] INT8 Memory Saver active (Quantized DiT • ~14.9GB VRAM footprint).")
     else:
         sys_gpu = get_system_gpu_name()
-        if num_available_gpus >= 2 or "4090" in sys_gpu or "Dual" in sys_gpu:
-            task["logs"].append(f"[{time.strftime('%H:%M:%S')}] ✨ [ENGINE] BF16 Studio Master active (Pure BF16 Precision • Dual RTX 4090 48GB x 2 • 96GB Total VRAM).")
+        if num_available_gpus >= 2:
+            task["logs"].append(f"[{time.strftime('%H:%M:%S')}] ✨ [ENGINE] BF16 Studio Master active (Pure BF16 Precision • {sys_gpu} • Context Parallelism 2x).")
         else:
             task["logs"].append(f"[{time.strftime('%H:%M:%S')}] ✨ [ENGINE] BF16 Studio Master active (Pure BF16 Precision • {sys_gpu}).")
 
@@ -3342,7 +3342,7 @@ if __name__ == "__main__":
     t = threading.Thread(target=background_queue_worker, args=(0,), daemon=True)
     t.start()
     worker_threads.append(t)
-    ports = [20100, 7860]
+    ports = [8080, 20100, 7860]
     if len(sys.argv) > 1:
         try:
             custom_p = int(sys.argv[1])

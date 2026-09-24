@@ -46,24 +46,37 @@ if command -v apt-get &>/dev/null; then
         psmisc
 fi
 
-# 3. Python dependencies
+# 3. Python dependencies & PyTorch with CUDA
 echo "⚡ Upgrading pip and installing Python dependencies..."
-$PIP_BIN install --upgrade pip setuptools wheel
-$PIP_BIN install huggingface_hub
+if command -v uv &>/dev/null; then
+    echo "⚡ Fast Package Installer (uv) detected!"
+    INSTALL_CMD="uv pip install --python $PYTHON_BIN"
+else
+    $PIP_BIN install --upgrade pip setuptools wheel
+    INSTALL_CMD="$PIP_BIN install"
+fi
+
+# Verify / Install PyTorch with CUDA
+if ! $PYTHON_BIN -c "import torch; assert torch.cuda.is_available()" 2>/dev/null; then
+    echo "🔥 Installing PyTorch with CUDA 12.8 acceleration..."
+    $INSTALL_CMD --extra-index-url https://download.pytorch.org/whl/cu128 torch torchvision torchaudio "numpy<2.0.0"
+fi
+
+$INSTALL_CMD huggingface_hub audioread
 
 if [ -f "requirements.txt" ]; then
     echo "Installing core requirements..."
-    $PIP_BIN install -r requirements.txt
+    $INSTALL_CMD -r requirements.txt || true
 fi
 
 if [ -f "requirements_avatar.txt" ]; then
     echo "Installing avatar pipeline requirements..."
-    $PIP_BIN install -r requirements_avatar.txt
+    $INSTALL_CMD -r requirements_avatar.txt || true
 fi
 
 if [ -f "requirements_ui.txt" ]; then
     echo "Installing UI requirements..."
-    $PIP_BIN install -r requirements_ui.txt
+    $INSTALL_CMD -r requirements_ui.txt || true
 fi
 
 # 4. Prepare Directories
@@ -84,8 +97,23 @@ else
     echo "✅ Model weights already present in $WEIGHTS_SUBDIR!"
 fi
 
-# 6. Start Studio Server
+# 6. Ensure Port 8080 and 20100 are completely clear
+echo "🧹 Ensuring Port 8080 and 20100 are clear..."
+if command -v supervisorctl &>/dev/null; then
+    supervisorctl stop jupyter 2>/dev/null || true
+    if [ -f "/etc/supervisor/conf.d/jupyter.conf" ]; then
+        sed -i 's/autostart=true/autostart=false/g' /etc/supervisor/conf.d/jupyter.conf
+        supervisorctl reread 2>/dev/null || true
+        supervisorctl update 2>/dev/null || true
+    fi
+fi
+pkill -9 -f "jupyter-notebook" 2>/dev/null || true
+fuser -k 8080/tcp 2>/dev/null || true
+fuser -k 20100/tcp 2>/dev/null || true
+
+# 7. Start Studio Server
 echo "===================================================================="
-echo "🎉 Starting LongCat-Avatar-1.5 Studio Master on Port 20100..."
+echo "🎉 Starting LongCat-Avatar-1.5 Studio Master (Ports 8080, 20100, 7860)..."
 echo "===================================================================="
-exec $PYTHON_BIN server.py 20100
+exec $PYTHON_BIN server.py 8080
+
