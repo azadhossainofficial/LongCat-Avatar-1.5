@@ -3852,8 +3852,14 @@ function initAudioLibraryModal() {
         return;
       }
 
+      // Sort files naturally so Audio_1 comes before Audio_2 and Audio_3
+      validFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
+      // Check if an upload is genuinely active right now
+      const isAlreadyUploading = isAudioUploading && currentUploadXhr !== null;
+
       // Build queue items for all selected files
-      const newQueueItems = validFiles.map(file => {
+      const newQueueItems = validFiles.map((file, idx) => {
         const tempId = 'upl_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
         const sizeMb = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
         return {
@@ -3865,7 +3871,7 @@ function initAudioLibraryModal() {
           size_bytes: file.size,
           url: '',
           is_uploaded: false,
-          upload_status: 'waiting',
+          upload_status: (!isAlreadyUploading && idx === 0) ? 'uploading' : 'waiting',
           progress: 0,
           file: file
         };
@@ -3878,7 +3884,14 @@ function initAudioLibraryModal() {
       // Add to sequential upload queue
       audioUploadQueue.push(...newQueueItems);
 
-      // Render immediately so all selected files appear instantly in their preview rows!
+      // Immediately set the top upload button to busy state
+      const btnUpload = $('btnUploadToAudioLibrary');
+      if (btnUpload) {
+        btnUpload.disabled = true;
+        btnUpload.innerHTML = `⏳ আপলোড হচ্ছে (${audioUploadQueue.length} বাকি)...`;
+      }
+
+      // Render immediately: 1st file shows 'uploading' (0%) and rest show 'waiting'!
       renderAudioLibraryList();
 
       showNotification(`📋 ${validFiles.length}টি অডিও কিউতে যোগ করা হয়েছে। ক্রমান্বয়ে আপলোড শুরু হচ্ছে...`);
@@ -3890,13 +3903,24 @@ function initAudioLibraryModal() {
 }
 
 async function processAudioUploadQueue() {
-  if (isAudioUploading) return;
+  // Guard against ghost lock: if marked uploading but no active XHR exists, recover lock
+  if (isAudioUploading) {
+    if (currentUploadXhr && currentUploadingItem) {
+      return; // Legitimate active transfer running
+    }
+    console.warn('Recovering from zombie upload lock: resetting isAudioUploading');
+    isAudioUploading = false;
+  }
+
   if (audioUploadQueue.length === 0) {
     const btnUpload = $('btnUploadToAudioLibrary');
     if (btnUpload) {
       btnUpload.disabled = false;
       btnUpload.innerHTML = '⬆️ অডিও আপলোড';
     }
+    isAudioUploading = false;
+    currentUploadXhr = null;
+    currentUploadingItem = null;
     return;
   }
 
@@ -3905,7 +3929,7 @@ async function processAudioUploadQueue() {
   const thisSessionId = ++currentUploadSessionId;
   currentUploadingItem = currentItem;
   currentItem.upload_status = 'uploading';
-  currentItem.progress = 0;
+  if (typeof currentItem.progress !== 'number') currentItem.progress = 0;
 
   const btnUpload = $('btnUploadToAudioLibrary');
   if (btnUpload) {
@@ -3934,13 +3958,14 @@ async function processAudioUploadQueue() {
       }
     }
   } finally {
+    currentUploadXhr = null;
+    currentUploadingItem = null;
+    isAudioUploading = false;
+
     if (currentUploadSessionId === thisSessionId) {
       if (audioUploadQueue.length > 0 && audioUploadQueue[0] === currentItem) {
         audioUploadQueue.shift();
       }
-      currentUploadXhr = null;
-      currentUploadingItem = null;
-      isAudioUploading = false;
       renderAudioLibraryList();
 
       if (audioUploadQueue.length > 0) {
@@ -3954,6 +3979,19 @@ async function processAudioUploadQueue() {
         }
         showNotification('🎉 সকল নির্বাচিত অডিও আপলোড সম্পন্ন হয়েছে!');
         await fetchAndRenderAudioLibrary(false);
+      }
+    } else {
+      // Session was superseded or cancelled, but if there are still items in the queue, resume worker!
+      if (audioUploadQueue.length > 0) {
+        setTimeout(() => {
+          processAudioUploadQueue();
+        }, 50);
+      } else {
+        if (btnUpload) {
+          btnUpload.disabled = false;
+          btnUpload.innerHTML = '⬆️ অডিও আপলোড';
+        }
+        renderAudioLibraryList();
       }
     }
   }
@@ -4279,7 +4317,7 @@ function renderAudioLibraryList(filterText = '') {
       const queueIdx = audioUploadQueue.findIndex(q => q.id === id || q.filename === fn);
 
       // CASE 1: Currently uploading item is deleted / cancelled
-      if (isCurrent || (queueIdx === 0 && isAudioUploading)) {
+      if (isCurrent || (queueIdx === 0 && isAudioUploading && currentUploadXhr)) {
         if (!confirm(`আপনি কি '${fn}' অডিও আপলোড বাতিল ও মুছে ফেলতে চান?`)) return;
 
         // Invalidate current upload session so old finally block will not touch state
@@ -4325,10 +4363,17 @@ function renderAudioLibraryList(filterText = '') {
       }
 
       // CASE 2: Item is in queue waiting to be uploaded
-      if (queueIdx > 0) {
+      if (queueIdx >= 0) {
         if (!confirm(`আপনি কি '${fn}' অডিও আপলোড কিউ থেকে মুছে ফেলতে চান?`)) return;
         audioUploadQueue.splice(queueIdx, 1);
         audioLibraryData = audioLibraryData.filter(a => a.id !== id && a.filename !== fn);
+        if (audioUploadQueue.length === 0) {
+          const btnUpload = $('btnUploadToAudioLibrary');
+          if (btnUpload) {
+            btnUpload.disabled = false;
+            btnUpload.innerHTML = '⬆️ অডিও আপলোড';
+          }
+        }
         renderAudioLibraryList();
         showNotification(`ℹ️ '${fn}' আপলোড কিউ থেকে মুছে ফেলা হয়েছে।`);
         return;
