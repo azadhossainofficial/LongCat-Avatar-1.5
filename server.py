@@ -1149,13 +1149,19 @@ def execute_avatar_generation(task_id: str):
     preset = task.get("preset", "distill_bf16")
     use_int8 = (preset == "distill_int8")
 
-    # Critical Safeguard for Legacy 24GB GPUs when running single-GPU:
-    if max_single_gpu_vram_gb > 0 and max_single_gpu_vram_gb <= 26.0 and num_available_gpus < 2:
+    # Critical Safeguard for GPUs under 40GB VRAM (e.g. 24GB RTX 3090/4090, 32GB RTX 4080):
+    # In DDP / Context Parallelism, model weights (28-30GB in BF16) are replicated on EACH GPU.
+    # Cards with < 38GB VRAM must use INT8 Quantized DiT (14.9 GB) to prevent CUDA OOM.
+    if max_single_gpu_vram_gb > 0 and max_single_gpu_vram_gb < 38.0:
         use_int8 = True
-        task["logs"].append(f"[{time.strftime('%H:%M:%S')}] 🛡️ [VRAM Safeguard] Single 24GB GPU detected. Enforcing INT8 Quantized DiT (14.9 GB).")
+        task["logs"].append(f"[{time.strftime('%H:%M:%S')}] 🛡️ [VRAM Safeguard] {max_single_gpu_vram_gb:.1f}GB GPU detected (< 38GB per-device threshold). Enforcing INT8 Quantized DiT (14.9 GB) for guaranteed zero-OOM stability.")
 
     if use_int8:
-        task["logs"].append(f"[{time.strftime('%H:%M:%S')}] ⚡ [ENGINE] INT8 Memory Saver active (Quantized DiT • ~14.9GB VRAM footprint).")
+        sys_gpu = get_system_gpu_name()
+        if num_available_gpus >= 2:
+            task["logs"].append(f"[{time.strftime('%H:%M:%S')}] ⚡ [ENGINE] INT8 Ultra-Fast Engine active (Quantized DiT • ~14.9GB VRAM • {sys_gpu} • Context Parallelism 2x).")
+        else:
+            task["logs"].append(f"[{time.strftime('%H:%M:%S')}] ⚡ [ENGINE] INT8 Memory Saver active (Quantized DiT • ~14.9GB VRAM • {sys_gpu}).")
     else:
         sys_gpu = get_system_gpu_name()
         if num_available_gpus >= 2:

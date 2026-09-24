@@ -633,7 +633,6 @@ def generate(args):
         audio_feature_extractor=audio_feature_extractor,
         model_type=model_type
     )
-    pipe.to(local_rank)
 
     global_seed = 42
     seed = global_seed + global_rank
@@ -729,6 +728,8 @@ def generate(args):
     center_indices = torch.clamp(center_indices, min=0, max=full_audio_emb.shape[0]-1)
     audio_emb = full_audio_emb[center_indices][None,...].to(local_rank)
 
+    # Stage DiT pipeline to GPU right before inference starts (keeps VRAM 100% free during audio preprocessing)
+    pipe.to(local_rank)
 
     if local_rank == 0:
         print(f"Generating segment 1/{num_segments}...")

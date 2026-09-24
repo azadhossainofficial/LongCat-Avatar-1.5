@@ -647,16 +647,43 @@ class LongCatVideoAvatarPipeline:
         audio_features = audio_features.to(self.audio_encoder.dtype)
 
         # ---- Whisper encoder：mel → hidden states ----
-        self.audio_encoder.to(device)
+        audio_dev = device
+        try:
+            if torch.cuda.is_available() and (isinstance(device, int) or "cuda" in str(device)):
+                free_gb = torch.cuda.mem_get_info(device)[0] / (1024 ** 3)
+                if free_gb < 3.5:
+                    audio_dev = "cpu"
+            self.audio_encoder.to(audio_dev)
+        except Exception:
+            audio_dev = "cpu"
+            self.audio_encoder.to("cpu")
+
         enc_chunks = []
         with torch.no_grad():
-            for i in range(0, audio_features.shape[-1], ENC_CHUNK):
-                chunk_hs = self.audio_encoder.encoder(
-                    audio_features[:, :, i: i + ENC_CHUNK].to(device),
-                    output_hidden_states=True,
-                ).hidden_states                           # tuple: (n_layers+1,) x [1, T_enc, D]
-                # Offload to CPU immediately to prevent accumulating 7+ GB VRAM for long audio
-                enc_chunks.append(torch.stack(chunk_hs, dim=2).cpu())
+            try:
+                for i in range(0, audio_features.shape[-1], ENC_CHUNK):
+                    chunk_hs = self.audio_encoder.encoder(
+                        audio_features[:, :, i: i + ENC_CHUNK].to(audio_dev),
+                        output_hidden_states=True,
+                    ).hidden_states                           # tuple: (n_layers+1,) x [1, T_enc, D]
+                    # Offload to CPU immediately to prevent accumulating 7+ GB VRAM for long audio
+                    enc_chunks.append(torch.stack(chunk_hs, dim=2).cpu())
+            except Exception as e_enc:
+                if audio_dev != "cpu":
+                    print(f"⚠️ [AUDIO ENCODER] GPU processing notice ({e_enc}). Falling back to CPU...")
+                    audio_dev = "cpu"
+                    self.audio_encoder.to("cpu")
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                    enc_chunks = []
+                    for i in range(0, audio_features.shape[-1], ENC_CHUNK):
+                        chunk_hs = self.audio_encoder.encoder(
+                            audio_features[:, :, i: i + ENC_CHUNK].to("cpu"),
+                            output_hidden_states=True,
+                        ).hidden_states
+                        enc_chunks.append(torch.stack(chunk_hs, dim=2).cpu())
+                else:
+                    raise e_enc
 
             # Offload audio encoder back to CPU immediately to free ~3.5 GB VRAM for DiT
             self.audio_encoder.to("cpu")
