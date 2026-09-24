@@ -2633,19 +2633,23 @@ class LongCatStudioHandler(SimpleHTTPRequestHandler):
                     total_written = 0
                     with open(out_path, "wb") as f:
                         while bytes_to_read > 0:
-                            chunk = self.rfile.read(min(bytes_to_read, 32 * 1024))
+                            chunk = self.rfile.read(min(bytes_to_read, 256 * 1024))
                             if not chunk:
                                 break
                             f.write(chunk)
                             bytes_to_read -= len(chunk)
                             total_written += len(chunk)
 
-                    get_audio_library_list()
+                    all_items = get_audio_library_list()
+                    meta = next((item for item in all_items if item["filename"] == clean_name), None)
 
                     self.send_json_response({
                         "success": True,
                         "filename": clean_name,
-                        "size_mb": round(total_written / (1024 * 1024), 2),
+                        "size_mb": f"{round(total_written / (1024 * 1024), 2)} MB",
+                        "duration": meta.get("duration", 0) if meta else 0,
+                        "duration_formatted": meta.get("duration_formatted", "--:--") if meta else "--:--",
+                        "id": meta.get("id", hashlib.md5(clean_name.encode()).hexdigest()[:10]) if meta else hashlib.md5(clean_name.encode()).hexdigest()[:10],
                         "url": f"/audio_library/{urllib.parse.quote(clean_name)}"
                     })
                     return
@@ -2655,7 +2659,7 @@ class LongCatStudioHandler(SimpleHTTPRequestHandler):
                     bytes_to_read = content_len
                     body_chunks = []
                     while bytes_to_read > 0:
-                        chunk = self.rfile.read(min(bytes_to_read, 32 * 1024))
+                        chunk = self.rfile.read(min(bytes_to_read, 256 * 1024))
                         if not chunk:
                             break
                         body_chunks.append(chunk)

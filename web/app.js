@@ -3669,6 +3669,8 @@ function initModals() {
 let activeLibraryAudioPlayer = null;
 let currentPlayingAudioId = null;
 let audioLibraryData = [];
+let audioUploadQueue = [];
+let isAudioUploading = false;
 
 function initAudioLibraryModal() {
   const btnOpen = $('btnOpenAudioLibrary');
@@ -3752,34 +3754,157 @@ function initAudioLibraryModal() {
       uploadInput.click();
     });
 
-    uploadInput.addEventListener('change', async () => {
-      const file = uploadInput.files && uploadInput.files[0];
-      if (!file) return;
+    uploadInput.addEventListener('change', () => {
+      const files = Array.from(uploadInput.files || []);
+      if (files.length === 0) return;
 
-      const origText = btnUpload.innerHTML;
-      btnUpload.disabled = true;
-      btnUpload.innerHTML = '⏳ আপলোড হচ্ছে...';
+      const allowedExts = ['.wav', '.mp3', '.m4a', '.aac', '.ogg', '.flac'];
+      const validFiles = files.filter(f => {
+        const ext = '.' + f.name.split('.').pop().toLowerCase();
+        return allowedExts.includes(ext) || f.type.startsWith('audio/');
+      });
 
-      try {
-        const res = await fetch(`/api/audio_library/upload?filename=${encodeURIComponent(file.name)}`, {
-          method: 'POST',
-          body: file
-        });
-        const json = await res.json();
-        if (json.success) {
-          showNotification(`✅ '${file.name}' সফলভাবে অডিও লাইব্রেরিতে যোগ করা হয়েছে!`);
-          await fetchAndRenderAudioLibrary(true);
-        } else {
-          alert('আপলোড ব্যর্থ হয়েছে: ' + (json.error || 'অজানা ত্রুটি'));
-        }
-      } catch (err) {
-        alert('আপলোড ত্রুটি: ' + err.message);
-      } finally {
-        btnUpload.disabled = false;
-        btnUpload.innerHTML = origText;
+      if (validFiles.length === 0) {
+        showNotification('⚠️ অনুগ্রহ করে সঠিক অডিও ফাইল (.wav, .mp3, .m4a, .aac, .ogg, .flac) নির্বাচন করুন।');
+        return;
       }
+
+      // Build queue items for all selected files
+      const newQueueItems = validFiles.map(file => {
+        const tempId = 'upl_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+        const sizeMb = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+        return {
+          id: tempId,
+          filename: file.name,
+          duration: 0,
+          duration_formatted: '--:--',
+          size_mb: sizeMb,
+          size_bytes: file.size,
+          url: '',
+          is_uploaded: false,
+          upload_status: 'waiting',
+          progress: 0,
+          file: file
+        };
+      });
+
+      // Filter out duplicates if already in list
+      const existingNames = new Set(newQueueItems.map(q => q.filename));
+      audioLibraryData = [...newQueueItems, ...audioLibraryData.filter(item => !existingNames.has(item.filename))];
+
+      // Add to sequential upload queue
+      audioUploadQueue.push(...newQueueItems);
+
+      // Render immediately so all selected files appear instantly in their preview rows!
+      renderAudioLibraryList();
+
+      showNotification(`📋 ${validFiles.length}টি অডিও কিউতে যোগ করা হয়েছে। ক্রমান্বয়ে আপলোড শুরু হচ্ছে...`);
+
+      // Trigger sequential queue processing
+      processAudioUploadQueue();
     });
   }
+}
+
+async function processAudioUploadQueue() {
+  if (isAudioUploading) return;
+  if (audioUploadQueue.length === 0) {
+    const btnUpload = $('btnUploadToAudioLibrary');
+    if (btnUpload) {
+      btnUpload.disabled = false;
+      btnUpload.innerHTML = '⬆️ অডিও আপলোড';
+    }
+    return;
+  }
+
+  isAudioUploading = true;
+  const currentItem = audioUploadQueue[0];
+  currentItem.upload_status = 'uploading';
+  currentItem.progress = 0;
+
+  const btnUpload = $('btnUploadToAudioLibrary');
+  if (btnUpload) {
+    btnUpload.disabled = true;
+    btnUpload.innerHTML = `⏳ আপলোড হচ্ছে (${audioUploadQueue.length} বাকি)...`;
+  }
+
+  renderAudioLibraryList();
+
+  try {
+    await uploadSingleAudioFile(currentItem);
+    currentItem.upload_status = 'uploaded';
+    currentItem.is_uploaded = true;
+    showNotification(`✅ '${currentItem.filename}' সফলভাবে লাইব্রেরিতে আপলোড হয়েছে!`);
+  } catch (err) {
+    console.error(`Audio upload failed for ${currentItem.filename}:`, err);
+    currentItem.upload_status = 'error';
+    currentItem.errorMessage = err.message || 'আপলোড ব্যর্থ';
+    showNotification(`❌ '${currentItem.filename}' আপলোড ত্রুটি: ${err.message}`);
+  } finally {
+    audioUploadQueue.shift();
+    isAudioUploading = false;
+    renderAudioLibraryList();
+
+    if (audioUploadQueue.length > 0) {
+      setTimeout(() => {
+        processAudioUploadQueue();
+      }, 50);
+    } else {
+      if (btnUpload) {
+        btnUpload.disabled = false;
+        btnUpload.innerHTML = '⬆️ অডিও আপলোড';
+      }
+      showNotification('🎉 সকল নির্বাচিত অডিও আপলোড সম্পন্ন হয়েছে!');
+      await fetchAndRenderAudioLibrary(false);
+    }
+  }
+}
+
+function uploadSingleAudioFile(item) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `/api/audio_library/upload?filename=${encodeURIComponent(item.filename)}`, true);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && e.total > 0) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        item.progress = pct;
+        const progressEl = document.getElementById(`audio-progress-${item.id}`);
+        if (progressEl) {
+          progressEl.textContent = `${pct}%`;
+        }
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const res = JSON.parse(xhr.responseText);
+          if (res.success) {
+            item.filename = res.filename || item.filename;
+            item.url = res.url || `/audio_library/${encodeURIComponent(item.filename)}`;
+            item.duration = res.duration || item.duration || 0;
+            item.duration_formatted = res.duration_formatted || item.duration_formatted || '--:--';
+            item.size_mb = res.size_mb || item.size_mb;
+            item.id = res.id || item.id;
+            item.is_uploaded = true;
+            resolve(res);
+          } else {
+            reject(new Error(res.error || 'সার্ভার সমস্যা'));
+          }
+        } catch (e) {
+          reject(new Error('অকার্যকর সার্ভার রেসপন্স'));
+        }
+      } else {
+        reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText || 'আপলোড ব্যর্থ'}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('নেটওয়ার্ক সংযোগ বিচ্ছিন্ন'));
+    xhr.ontimeout = () => reject(new Error('আপলোড সময়সীমা উত্তীর্ণ হয়েছে'));
+    xhr.timeout = 30 * 60 * 1000;
+    xhr.send(item.file);
+  });
 }
 
 function closeAudioLibraryModal() {
@@ -3806,7 +3931,10 @@ async function fetchAndRenderAudioLibrary(isManualRefresh = false) {
   const bodyEl = $('audioLibraryBody');
   if (!bodyEl) return;
 
-  if (isManualRefresh || audioLibraryData.length === 0) {
+  const inFlightItems = audioLibraryData.filter(item => item.upload_status === 'uploading' || item.upload_status === 'waiting');
+  const inFlightFilenames = new Set(inFlightItems.map(p => p.filename));
+
+  if ((isManualRefresh || audioLibraryData.length === 0) && inFlightItems.length === 0) {
     bodyEl.innerHTML = `
       <div style="text-align: center; padding: 30px; color: var(--text-muted);">
         <span class="badge-icon-spin" style="font-size: 24px; display: block; margin-bottom: 10px;">🔄</span>
@@ -3830,19 +3958,25 @@ async function fetchAndRenderAudioLibrary(isManualRefresh = false) {
         completedMap = {};
       }
     }
-    audioLibraryData = Array.isArray(data.audios) ? data.audios.map(item => ({
+    const serverAudios = Array.isArray(data.audios) ? data.audios.map(item => ({
       ...item,
-      is_uploaded: Boolean(item.is_uploaded || completedMap[item.filename])
+      is_uploaded: Boolean(item.is_uploaded || completedMap[item.filename]),
+      upload_status: 'uploaded'
     })) : [];
+
+    const dedupedServer = serverAudios.filter(s => !inFlightFilenames.has(s.filename));
+    audioLibraryData = [...inFlightItems, ...dedupedServer];
     renderAudioLibraryList();
   } catch (err) {
     console.error('Audio library fetch error:', err);
-    bodyEl.innerHTML = `
-      <div style="text-align: center; padding: 25px; color: #ef4444; background: rgba(239, 68, 68, 0.1); border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2);">
-        ⚠️ অডিও লাইব্রেরি লোড করতে সমস্যা হয়েছে: ${err.message}<br>
-        <button onclick="fetchAndRenderAudioLibrary(true)" style="margin-top: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 5px 12px; border-radius: 6px; cursor: pointer;">পুনরায় চেষ্টা করুন</button>
-      </div>
-    `;
+    if (inFlightItems.length === 0) {
+      bodyEl.innerHTML = `
+        <div style="text-align: center; padding: 25px; color: #ef4444; background: rgba(239, 68, 68, 0.1); border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2);">
+          ⚠️ অডিও লাইব্রেরি লোড করতে সমস্যা হয়েছে: ${err.message}<br>
+          <button onclick="fetchAndRenderAudioLibrary(true)" style="margin-top: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 5px 12px; border-radius: 6px; cursor: pointer;">পুনরায় চেষ্টা করুন</button>
+        </div>
+      `;
+    }
   }
 }
 
@@ -3882,17 +4016,64 @@ function renderAudioLibraryList(filterText = '') {
   bodyEl.innerHTML = filtered.map(item => {
     const isPlaying = currentPlayingAudioId === item.id;
     const isSelected = activeSlot && activeSlot.audioLibraryFilename === item.filename;
-    const isUploaded = Boolean(item.is_uploaded);
+    const status = item.upload_status || (item.is_uploaded ? 'uploaded' : 'uploaded');
 
-    // Status Badge placed inline right next to Size
-    const statusBadgeHtml = isUploaded
-      ? `<span class="audio-status-pill uploaded" style="background: #ffffff; color: #000000; padding: 2px 8px; border-radius: 4px; font-weight: 800; font-size: 10px; letter-spacing: 0.4px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.35);">✓ Uploaded</span>`
-      : `<span class="audio-status-pill uploading" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; letter-spacing: 0.3px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px;"><span class="mini-pulse-dot" style="background: #fbbf24; width: 6px; height: 6px; border-radius: 50%; display: inline-block;"></span> Uploading...</span>`;
+    let statusBadgeHtml = '';
+    let actionBtnHtml = '';
+    let isPlayDisabled = false;
+
+    if (status === 'uploading') {
+      isPlayDisabled = true;
+      statusBadgeHtml = `
+        <span class="audio-status-pill uploading" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; letter-spacing: 0.3px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px;">
+          <span class="mini-pulse-dot" style="background: #fbbf24; width: 6px; height: 6px; border-radius: 50%; display: inline-block;"></span>
+          Uploading... <span id="audio-progress-${item.id}" style="margin-left: 2px; font-weight: 800; color: #fef08a;">${item.progress || 0}%</span>
+        </span>
+      `;
+      actionBtnHtml = `
+        <button type="button" disabled style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: not-allowed; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
+          <span style="display:inline-block; width:10px; height:10px; border:2px solid #fbbf24; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite;"></span>
+          আপলোড হচ্ছে...
+        </button>
+      `;
+    } else if (status === 'waiting') {
+      isPlayDisabled = true;
+      statusBadgeHtml = `
+        <span class="audio-status-pill waiting" style="background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.35); padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; letter-spacing: 0.3px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px;">
+          ⏳ Waiting...
+        </span>
+      `;
+      actionBtnHtml = `
+        <button type="button" disabled style="background: rgba(255,255,255,0.06); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: not-allowed; white-space: nowrap;">
+          ⏳ ওয়েটিং...
+        </button>
+      `;
+    } else if (status === 'error') {
+      statusBadgeHtml = `
+        <span class="audio-status-pill error" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px;">
+          ❌ ত্রুটি
+        </span>
+      `;
+      actionBtnHtml = `
+        <button type="button" class="btn-retry-library-audio" data-id="${item.id}" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; padding: 7px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">
+          🔄 Retry
+        </button>
+      `;
+    } else {
+      statusBadgeHtml = `
+        <span class="audio-status-pill uploaded" style="background: #ffffff; color: #000000; padding: 2px 8px; border-radius: 4px; font-weight: 800; font-size: 10px; letter-spacing: 0.4px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.35);">✓ Uploaded</span>
+      `;
+      actionBtnHtml = `
+        <button type="button" class="btn-select-library-audio" data-filename="${item.filename}" data-duration="${item.duration}" data-sizemb="${item.size_mb}" data-url="${item.url}" data-id="${item.id}" style="background: ${isSelected ? 'rgba(16, 185, 129, 0.3)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)'}; color: #ffffff; border: 1px solid ${isSelected ? '#10b981' : 'rgba(255,255,255,0.2)'}; padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);">
+          ${isSelected ? '✓ Selected' : `👉 Use for ${currentSlotName}`}
+        </button>
+      `;
+    }
 
     return `
       <div class="audio-lib-item" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: ${isSelected ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.04)'}; border: 1px solid ${isSelected ? 'rgba(16, 185, 129, 0.5)' : 'rgba(255, 255, 255, 0.08)'}; border-radius: 12px; gap: 12px; transition: all 0.2s ease;">
         <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
-          <button type="button" class="library-play-btn ${isPlaying ? 'playing' : ''}" data-url="${item.url}" data-id="${item.id}" style="width: 36px; height: 36px; border-radius: 50%; background: ${isPlaying ? '#10b981' : 'rgba(255,255,255,0.1)'}; border: 1px solid rgba(255,255,255,0.2); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; flex-shrink: 0; transition: all 0.2s ease;">
+          <button type="button" class="library-play-btn ${isPlaying ? 'playing' : ''}" data-url="${item.url}" data-id="${item.id}" ${isPlayDisabled ? 'disabled style="width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #64748b; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: not-allowed; flex-shrink: 0;"' : 'style="width: 36px; height: 36px; border-radius: 50%; background: ' + (isPlaying ? '#10b981' : 'rgba(255,255,255,0.1)') + '; border: 1px solid rgba(255,255,255,0.2); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; flex-shrink: 0; transition: all 0.2s ease;"'}>
             ${isPlaying ? '⏸' : '▶'}
           </button>
           <div style="flex: 1; min-width: 0;">
@@ -3908,10 +4089,8 @@ function renderAudioLibraryList(filterText = '') {
         </div>
 
         <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-          <button type="button" class="btn-select-library-audio" data-filename="${item.filename}" data-duration="${item.duration}" data-sizemb="${item.size_mb}" data-url="${item.url}" data-id="${item.id}" style="background: ${isSelected ? 'rgba(16, 185, 129, 0.3)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)'}; color: #ffffff; border: 1px solid ${isSelected ? '#10b981' : 'rgba(255,255,255,0.2)'}; padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);">
-            ${isSelected ? '✓ Selected' : `👉 Use for ${currentSlotName}`}
-          </button>
-          <button type="button" class="btn-delete-library-audio" data-filename="${item.filename}" title="মুছে ফেলুন" style="background: #dc2626; border: 1px solid #ef4444; color: #ffffff; border-radius: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(220, 38, 38, 0.4); transition: all 0.2s ease;">
+          ${actionBtnHtml}
+          <button type="button" class="btn-delete-library-audio" data-filename="${item.filename}" data-id="${item.id}" title="${(status === 'waiting' || status === 'uploading') ? 'আপলোড বাতিল করুন' : 'মুছে ফেলুন'}" style="background: #dc2626; border: 1px solid #ef4444; color: #ffffff; border-radius: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(220, 38, 38, 0.4); transition: all 0.2s ease;">
             <span style="display: inline-block; filter: brightness(0) invert(1);">🗑️</span>
           </button>
         </div>
@@ -3923,9 +4102,10 @@ function renderAudioLibraryList(filterText = '') {
   bodyEl.querySelectorAll('.library-play-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (btn.disabled) return;
       const id = btn.getAttribute('data-id');
       const url = btn.getAttribute('data-url');
-      toggleLibraryAudioPreview(id, url);
+      if (url) toggleLibraryAudioPreview(id, url);
     });
   });
 
@@ -3942,11 +4122,38 @@ function renderAudioLibraryList(filterText = '') {
     });
   });
 
+  // Add click listeners to retry buttons
+  bodyEl.querySelectorAll('.btn-retry-library-audio').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute('data-id');
+      const item = audioLibraryData.find(a => a.id === id);
+      if (item && item.file) {
+        item.upload_status = 'waiting';
+        audioUploadQueue.push(item);
+        renderAudioLibraryList();
+        processAudioUploadQueue();
+      }
+    });
+  });
+
   // Add click listeners to delete buttons
   bodyEl.querySelectorAll('.btn-delete-library-audio').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const fn = btn.getAttribute('data-filename');
+      const id = btn.getAttribute('data-id');
+
+      const queueIdx = audioUploadQueue.findIndex(q => q.id === id || q.filename === fn);
+      if (queueIdx !== -1) {
+        if (!confirm(`আপনি কি '${fn}' অডিও আপলোড বাতিল করতে চান?`)) return;
+        audioUploadQueue.splice(queueIdx, 1);
+        audioLibraryData = audioLibraryData.filter(a => a.id !== id && a.filename !== fn);
+        renderAudioLibraryList();
+        showNotification(`ℹ️ '${fn}' আপলোড কিউ থেকে বাতিল করা হয়েছে।`);
+        return;
+      }
+
       if (!confirm(`আপনি কি '${fn}' অডিও ফাইলটি লাইব্রেরি থেকে মুছে ফেলতে চান?`)) return;
       try {
         const res = await fetch('/api/audio_library/delete', {
