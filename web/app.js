@@ -100,7 +100,7 @@ function createSlot(id, name) {
     detectedResolution: '1080x1920',
     detectedQualityLabel: 'Full HD Portrait',
     detectedRatioTitle: '9:16 Portrait (Reels / Shorts)',
-    selectedPreset: 'distill_int8',
+    selectedPreset: 'distill_bf16',
     selectedSteps: 3,
     generationMode: 'anchor_seamless',
     numFrames: 205,
@@ -5420,7 +5420,7 @@ function restoreStateFastSync() {
           merged.selectedSteps = 3;
         }
         if (!merged.selectedPreset || !['distill_bf16', 'distill_int8'].includes(merged.selectedPreset)) {
-          merged.selectedPreset = 'distill_int8';
+          merged.selectedPreset = 'distill_bf16';
         }
         if (!merged.stepBooster) merged.stepBooster = 'sage_attention';
         if (!merged.selectedResolution || merged.selectedResolution === 'auto') {
