@@ -2628,17 +2628,45 @@ class LongCatStudioHandler(SimpleHTTPRequestHandler):
                         self.send_json_response({"error": f"Unsupported audio format: {ext}"}, status=400)
                         return
 
+                    part_path = AUDIO_LIBRARY_DIR / f".upload_{clean_name}.tmp"
                     out_path = AUDIO_LIBRARY_DIR / clean_name
                     bytes_to_read = content_len
                     total_written = 0
-                    with open(out_path, "wb") as f:
-                        while bytes_to_read > 0:
-                            chunk = self.rfile.read(min(bytes_to_read, 256 * 1024))
-                            if not chunk:
-                                break
-                            f.write(chunk)
-                            bytes_to_read -= len(chunk)
-                            total_written += len(chunk)
+                    upload_interrupted = False
+                    try:
+                        with open(part_path, "wb") as f:
+                            while bytes_to_read > 0:
+                                chunk = self.rfile.read(min(bytes_to_read, 256 * 1024))
+                                if not chunk:
+                                    upload_interrupted = True
+                                    break
+                                f.write(chunk)
+                                bytes_to_read -= len(chunk)
+                                total_written += len(chunk)
+                    except (ConnectionResetError, BrokenPipeError, Exception):
+                        upload_interrupted = True
+
+                    if upload_interrupted or bytes_to_read > 0:
+                        # Client aborted or disconnected; delete partial files immediately
+                        if part_path.exists():
+                            try:
+                                part_path.unlink()
+                            except Exception:
+                                pass
+                        if out_path.exists():
+                            try:
+                                out_path.unlink()
+                            except Exception:
+                                pass
+                        return
+
+                    # Complete: atomically replace final file
+                    try:
+                        part_path.replace(out_path)
+                    except Exception:
+                        if part_path.exists():
+                            import shutil
+                            shutil.move(str(part_path), str(out_path))
 
                     all_items = get_audio_library_list()
                     meta = next((item for item in all_items if item["filename"] == clean_name), None)
@@ -2704,8 +2732,11 @@ class LongCatStudioHandler(SimpleHTTPRequestHandler):
                 if target_fn:
                     clean_name = Path(target_fn).name
                     target_file = AUDIO_LIBRARY_DIR / clean_name
+                    part_file = AUDIO_LIBRARY_DIR / f".upload_{clean_name}.tmp"
                     if target_file.exists() and target_file.is_file():
                         target_file.unlink(missing_ok=True)
+                    if part_file.exists() and part_file.is_file():
+                        part_file.unlink(missing_ok=True)
                     # Clear from cache
                     cache_file = AUDIO_LIBRARY_DIR / ".audio_meta_cache.json"
                     if cache_file.exists():
@@ -2735,10 +2766,11 @@ class LongCatStudioHandler(SimpleHTTPRequestHandler):
                 deleted = []
                 if AUDIO_LIBRARY_DIR.exists():
                     for f in AUDIO_LIBRARY_DIR.iterdir():
-                        if f.is_file() and not f.name.startswith("."):
+                        if f.is_file() and (not f.name.startswith(".") or f.name.startswith(".upload_")):
                             try:
                                 f.unlink(missing_ok=True)
-                                deleted.append(f.name)
+                                if not f.name.startswith("."):
+                                    deleted.append(f.name)
                             except Exception:
                                 pass
                 

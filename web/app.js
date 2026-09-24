@@ -3671,6 +3671,9 @@ let currentPlayingAudioId = null;
 let audioLibraryData = [];
 let audioUploadQueue = [];
 let isAudioUploading = false;
+let currentUploadSessionId = 0;
+let currentUploadXhr = null;
+let currentUploadingItem = null;
 
 function initAudioLibraryModal() {
   const btnOpen = $('btnOpenAudioLibrary');
@@ -3717,6 +3720,23 @@ function initAudioLibraryModal() {
       }
       const confirmed = confirm(`⚠️ আপনি কি অডিও লাইব্রেরির সকল (${audioLibraryData.length} টি) অডিও ফাইল স্থায়ীভাবে ডিলিট করে সার্ভারের ডিস্ক স্পেস সম্পূর্ণ খালি করতে চান?\n\nএই কাজ সম্পন্ন হলে অডিও ফাইলগুলো পারমানেন্টলি মুছে যাবে।`);
       if (!confirmed) return;
+
+      // Abort any ongoing upload immediately & clear queue
+      currentUploadSessionId++;
+      if (currentUploadXhr) {
+        try {
+          currentUploadXhr.abort();
+        } catch (e) {}
+        currentUploadXhr = null;
+      }
+      currentUploadingItem = null;
+      audioUploadQueue = [];
+      isAudioUploading = false;
+      const btnUpload = $('btnUploadToAudioLibrary');
+      if (btnUpload) {
+        btnUpload.disabled = false;
+        btnUpload.innerHTML = '⬆️ অডিও আপলোড';
+      }
 
       const origText = btnDeleteAll.innerHTML;
       btnDeleteAll.disabled = true;
@@ -3819,6 +3839,8 @@ async function processAudioUploadQueue() {
 
   isAudioUploading = true;
   const currentItem = audioUploadQueue[0];
+  const thisSessionId = ++currentUploadSessionId;
+  currentUploadingItem = currentItem;
   currentItem.upload_status = 'uploading';
   currentItem.progress = 0;
 
@@ -3832,30 +3854,44 @@ async function processAudioUploadQueue() {
 
   try {
     await uploadSingleAudioFile(currentItem);
-    currentItem.upload_status = 'uploaded';
-    currentItem.is_uploaded = true;
-    showNotification(`✅ '${currentItem.filename}' সফলভাবে লাইব্রেরিতে আপলোড হয়েছে!`);
+    if (currentUploadSessionId === thisSessionId) {
+      currentItem.upload_status = 'uploaded';
+      currentItem.is_uploaded = true;
+      showNotification(`✅ '${currentItem.filename}' সফলভাবে লাইব্রেরিতে আপলোড হয়েছে!`);
+    }
   } catch (err) {
-    console.error(`Audio upload failed for ${currentItem.filename}:`, err);
-    currentItem.upload_status = 'error';
-    currentItem.errorMessage = err.message || 'আপলোড ব্যর্থ';
-    showNotification(`❌ '${currentItem.filename}' আপলোড ত্রুটি: ${err.message}`);
-  } finally {
-    audioUploadQueue.shift();
-    isAudioUploading = false;
-    renderAudioLibraryList();
-
-    if (audioUploadQueue.length > 0) {
-      setTimeout(() => {
-        processAudioUploadQueue();
-      }, 50);
-    } else {
-      if (btnUpload) {
-        btnUpload.disabled = false;
-        btnUpload.innerHTML = '⬆️ অডিও আপলোড';
+    if (currentUploadSessionId === thisSessionId) {
+      if (err && err.name === 'AbortError') {
+        console.log(`Audio upload aborted for ${currentItem.filename}`);
+      } else {
+        console.error(`Audio upload failed for ${currentItem.filename}:`, err);
+        currentItem.upload_status = 'error';
+        currentItem.errorMessage = err.message || 'আপলোড ব্যর্থ';
+        showNotification(`❌ '${currentItem.filename}' আপলোড ত্রুটি: ${err.message}`);
       }
-      showNotification('🎉 সকল নির্বাচিত অডিও আপলোড সম্পন্ন হয়েছে!');
-      await fetchAndRenderAudioLibrary(false);
+    }
+  } finally {
+    if (currentUploadSessionId === thisSessionId) {
+      if (audioUploadQueue.length > 0 && audioUploadQueue[0] === currentItem) {
+        audioUploadQueue.shift();
+      }
+      currentUploadXhr = null;
+      currentUploadingItem = null;
+      isAudioUploading = false;
+      renderAudioLibraryList();
+
+      if (audioUploadQueue.length > 0) {
+        setTimeout(() => {
+          processAudioUploadQueue();
+        }, 50);
+      } else {
+        if (btnUpload) {
+          btnUpload.disabled = false;
+          btnUpload.innerHTML = '⬆️ অডিও আপলোড';
+        }
+        showNotification('🎉 সকল নির্বাচিত অডিও আপলোড সম্পন্ন হয়েছে!');
+        await fetchAndRenderAudioLibrary(false);
+      }
     }
   }
 }
@@ -3863,6 +3899,8 @@ async function processAudioUploadQueue() {
 function uploadSingleAudioFile(item) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    currentUploadXhr = xhr;
+
     xhr.open('POST', `/api/audio_library/upload?filename=${encodeURIComponent(item.filename)}`, true);
 
     xhr.upload.onprogress = (e) => {
@@ -3877,6 +3915,7 @@ function uploadSingleAudioFile(item) {
     };
 
     xhr.onload = () => {
+      currentUploadXhr = null;
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const res = JSON.parse(xhr.responseText);
@@ -3900,8 +3939,23 @@ function uploadSingleAudioFile(item) {
       }
     };
 
-    xhr.onerror = () => reject(new Error('নেটওয়ার্ক সংযোগ বিচ্ছিন্ন'));
-    xhr.ontimeout = () => reject(new Error('আপলোড সময়সীমা উত্তীর্ণ হয়েছে'));
+    xhr.onerror = () => {
+      currentUploadXhr = null;
+      reject(new Error('নেটওয়ার্ক সংযোগ বিচ্ছিন্ন'));
+    };
+
+    xhr.onabort = () => {
+      currentUploadXhr = null;
+      const abortErr = new Error('আপলোড বাতিল করা হয়েছে');
+      abortErr.name = 'AbortError';
+      reject(abortErr);
+    };
+
+    xhr.ontimeout = () => {
+      currentUploadXhr = null;
+      reject(new Error('আপলোড সময়সীমা উত্তীর্ণ হয়েছে'));
+    };
+
     xhr.timeout = 30 * 60 * 1000;
     xhr.send(item.file);
   });
@@ -4144,16 +4198,79 @@ function renderAudioLibraryList(filterText = '') {
       const fn = btn.getAttribute('data-filename');
       const id = btn.getAttribute('data-id');
 
+      const isCurrent = currentUploadingItem && (currentUploadingItem.id === id || currentUploadingItem.filename === fn);
       const queueIdx = audioUploadQueue.findIndex(q => q.id === id || q.filename === fn);
-      if (queueIdx !== -1) {
-        if (!confirm(`আপনি কি '${fn}' অডিও আপলোড বাতিল করতে চান?`)) return;
-        audioUploadQueue.splice(queueIdx, 1);
+
+      // CASE 1: Currently uploading item is deleted / cancelled
+      if (isCurrent || (queueIdx === 0 && isAudioUploading)) {
+        if (!confirm(`আপনি কি '${fn}' অডিও আপলোড বাতিল ও মুছে ফেলতে চান?`)) return;
+
+        // Invalidate current upload session so old finally block will not touch state
+        currentUploadSessionId++;
+
+        // Immediately abort active HTTP upload stream
+        if (currentUploadXhr) {
+          try {
+            currentUploadXhr.abort();
+          } catch (err) {}
+          currentUploadXhr = null;
+        }
+        currentUploadingItem = null;
+        isAudioUploading = false;
+
+        // Remove from list and queue
+        audioUploadQueue = audioUploadQueue.filter(q => q.id !== id && q.filename !== fn);
         audioLibraryData = audioLibraryData.filter(a => a.id !== id && a.filename !== fn);
+
+        // Tell server to delete any partial or temporary files
+        fetch('/api/audio_library/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: fn })
+        }).catch(() => {});
+
+        showNotification(`⏹️ '${fn}' আপলোড বাতিল করা হয়েছে। পরবর্তী অডিও আপলোড শুরু হচ্ছে...`);
         renderAudioLibraryList();
-        showNotification(`ℹ️ '${fn}' আপলোড কিউ থেকে বাতিল করা হয়েছে।`);
+
+        // Immediately start next waiting upload in queue if any
+        if (audioUploadQueue.length > 0) {
+          setTimeout(() => {
+            processAudioUploadQueue();
+          }, 50);
+        } else {
+          const btnUpload = $('btnUploadToAudioLibrary');
+          if (btnUpload) {
+            btnUpload.disabled = false;
+            btnUpload.innerHTML = '⬆️ অডিও আপলোড';
+          }
+        }
         return;
       }
 
+      // CASE 2: Item is in queue waiting to be uploaded
+      if (queueIdx > 0) {
+        if (!confirm(`আপনি কি '${fn}' অডিও আপলোড কিউ থেকে মুছে ফেলতে চান?`)) return;
+        audioUploadQueue.splice(queueIdx, 1);
+        audioLibraryData = audioLibraryData.filter(a => a.id !== id && a.filename !== fn);
+        renderAudioLibraryList();
+        showNotification(`ℹ️ '${fn}' আপলোড কিউ থেকে মুছে ফেলা হয়েছে।`);
+        return;
+      }
+
+      // CASE 3: Item had an upload error or is a temporary queue item
+      const inData = audioLibraryData.find(a => a.id === id || a.filename === fn);
+      if (inData && inData.upload_status === 'error') {
+        audioLibraryData = audioLibraryData.filter(a => a.id !== id && a.filename !== fn);
+        renderAudioLibraryList();
+        fetch('/api/audio_library/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: fn })
+        }).catch(() => {});
+        return;
+      }
+
+      // CASE 4: Standard delete of uploaded file from server library
       if (!confirm(`আপনি কি '${fn}' অডিও ফাইলটি লাইব্রেরি থেকে মুছে ফেলতে চান?`)) return;
       try {
         const res = await fetch('/api/audio_library/delete', {
@@ -4163,7 +4280,12 @@ function renderAudioLibraryList(filterText = '') {
         });
         const json = await res.json();
         if (json.success) {
-          fetchAndRenderAudioLibrary(true);
+          audioLibraryData = audioLibraryData.filter(a => a.filename !== fn && a.id !== id);
+          renderAudioLibraryList();
+          showNotification(`🗑️ '${fn}' মুছে ফেলা হয়েছে।`);
+          fetchAndRenderAudioLibrary(false);
+        } else {
+          alert('Delete failed: ' + (json.error || 'অজানা সমস্যা'));
         }
       } catch (err) {
         alert('Delete failed: ' + err.message);
